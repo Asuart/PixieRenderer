@@ -151,6 +151,7 @@ void VulkanFrameBuffer::Resize(VkExtent2D extent) {
 }
 
 void VulkanFrameBuffer::Transition(
+    VkCommandBuffer cmdBuf,
     VkImageLayout newLayout,
     VkAccessFlags srcAccessMask,
     VkAccessFlags dstAccessMask,
@@ -159,6 +160,7 @@ void VulkanFrameBuffer::Transition(
     VkImageAspectFlags aspectMask
 ) {
 	m_device.TransitionImage(
+		cmdBuf,
 	    m_colorImage,
 	    m_imageLayout,
 	    newLayout,
@@ -167,13 +169,9 @@ void VulkanFrameBuffer::Transition(
 	    srcStage,
 	    dstStage,
 	    aspectMask,
-	    1
+	    1,
+		1
 	);
-	m_imageLayout = newLayout;
-}
-
-void VulkanFrameBuffer::TransitionLayout(VkImageLayout newLayout) {
-	m_device.TransitionImageLayout(m_colorImage, m_colorFormat, m_imageLayout, newLayout, 1);
 	m_imageLayout = newLayout;
 }
 
@@ -217,8 +215,6 @@ void VulkanFrameBuffer::CreateImages() {
 	    1,
 	    m_depthImageView
 	);
-
-	TransitionLayout(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 }
 
 void VulkanFrameBuffer::FreeImages() {

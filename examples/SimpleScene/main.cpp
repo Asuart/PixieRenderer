@@ -115,8 +115,6 @@ class SimplaeSceneApp : public PixieApp::PixieUIApplication {
 	void BeforeDrawFrame() override {
 		m_ui->OnBeforeDrawFrame();
 
-		m_renderer->BeginRenderPass(m_frameBuffer);
-
 		glm::mat4 model = glm::mat4(1.0f);
 		m_angle += PixieApp::Time::deltaTime * 0.5f;
 		model = glm::rotate(model, m_angle, glm::vec3(0.0f, 1.0f, 0.0f));
@@ -131,8 +129,8 @@ class SimplaeSceneApp : public PixieApp::PixieUIApplication {
 
 		m_renderer->BindTexture(m_materialHandle, "texSampler", m_texture, 0);
 
+		m_renderer->BeginRenderPass(m_frameBuffer);
 		m_renderer->DrawMesh(m_meshHandle, m_materialHandle);
-
 		m_renderer->EndRenderPass();
 	}
 

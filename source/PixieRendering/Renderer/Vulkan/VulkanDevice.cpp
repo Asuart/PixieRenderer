@@ -12,7 +12,11 @@
 
 namespace PixieRenderer {
 
-void VulkanDevice::Initialize(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, const std::vector<const char*>& deviceExtensions) {
+void VulkanDevice::Initialize(
+    VkPhysicalDevice physicalDevice,
+    VkSurfaceKHR surface,
+    const std::vector<const char*>& deviceExtensions
+) {
 	VulkanPhysicalDeviceUtils::PrintPhysicalDeviceProperties(physicalDevice);
 
 	m_physicalDevice = physicalDevice;
@@ -294,58 +298,7 @@ void VulkanDevice::EndSingleTimeCommands(VkCommandBuffer commandBuffer) {
 	EndSingleTimeCommands(m_commandPool, commandBuffer);
 }
 
-void VulkanDevice::TransitionImageLayout(
-    VkImage image,
-    VkFormat format,
-    VkImageLayout oldLayout,
-    VkImageLayout newLayout,
-    uint32_t mipLevels
-) {
-	if (oldLayout == newLayout) {
-		return;
-	}
-
-	if (debug_isInRenderPass) {
-		throw "should not trasition during render pass";
-	}
-
-	VkCommandBuffer commandBuffer = BeginSingleTimeCommands(m_commandPool);
-
-	VkImageMemoryBarrier barrier{};
-	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-	barrier.oldLayout = oldLayout;
-	barrier.newLayout = newLayout;
-	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	barrier.image = image;
-	barrier.subresourceRange.aspectMask = VulkanPhysicalDeviceUtils::GetAspectMask(format);
-	barrier.subresourceRange.baseMipLevel = 0;
-	barrier.subresourceRange.levelCount = mipLevels;
-	barrier.subresourceRange.baseArrayLayer = 0;
-	barrier.subresourceRange.layerCount = 1;
-
-	barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT;
-	barrier.dstAccessMask = VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT;
-	VkPipelineStageFlags sourceStage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-	VkPipelineStageFlags destinationStage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-
-	vkCmdPipelineBarrier(
-	    commandBuffer,
-	    sourceStage,
-	    destinationStage,
-	    0,
-	    0,
-	    nullptr,
-	    0,
-	    nullptr,
-	    1,
-	    &barrier
-	);
-
-	EndSingleTimeCommands(m_commandPool, commandBuffer);
-}
-
-void VulkanDevice::TransitionImage(
+void VulkanDevice::TransitionImageSingleTime(
     VkImage image,
     VkImageLayout oldLayout,
     VkImageLayout newLayout,
@@ -354,6 +307,7 @@ void VulkanDevice::TransitionImage(
     VkPipelineStageFlags srcStage,
     VkPipelineStageFlags dstStage,
     VkImageAspectFlags aspectMask,
+    uint32_t layersCount,
     uint32_t mipLevels
 ) {
 	if (oldLayout == newLayout) {
@@ -366,6 +320,44 @@ void VulkanDevice::TransitionImage(
 
 	VkCommandBuffer buf = BeginSingleTimeCommands();
 
+	TransitionImage(
+	    buf,
+		image,
+	    oldLayout,
+	    newLayout,
+	    srcAccessMask,
+	    dstAccessMask,
+	    srcStage,
+	    dstStage,
+	    aspectMask,
+		layersCount,
+	    mipLevels
+	);
+
+	EndSingleTimeCommands(buf);
+}
+
+void VulkanDevice::TransitionImage(
+	VkCommandBuffer cmdBuf,
+    VkImage image,
+    VkImageLayout oldLayout,
+    VkImageLayout newLayout,
+    VkAccessFlags srcAccessMask,
+    VkAccessFlags dstAccessMask,
+    VkPipelineStageFlags srcStage,
+    VkPipelineStageFlags dstStage,
+    VkImageAspectFlags aspectMask,
+	uint32_t layersCount,
+    uint32_t mipLevels
+) {
+	if (oldLayout == newLayout) {
+		return;
+	}
+
+	if (debug_isInRenderPass) {
+		throw "should not trasition during render pass";
+	}
+
 	VkImageMemoryBarrier barrier{};
 	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 	barrier.oldLayout = oldLayout;
@@ -377,13 +369,11 @@ void VulkanDevice::TransitionImage(
 	barrier.subresourceRange.baseMipLevel = 0;
 	barrier.subresourceRange.levelCount = mipLevels;
 	barrier.subresourceRange.baseArrayLayer = 0;
-	barrier.subresourceRange.layerCount = 1;
+	barrier.subresourceRange.layerCount = layersCount;
 	barrier.srcAccessMask = srcAccessMask;
 	barrier.dstAccessMask = dstAccessMask;
 
-	vkCmdPipelineBarrier(buf, srcStage, dstStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
-
-	EndSingleTimeCommands(buf);
+	vkCmdPipelineBarrier(cmdBuf, srcStage, dstStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 }
 
 QueueFamilyIndices VulkanDevice::GetQueueFamilyIndices() const {

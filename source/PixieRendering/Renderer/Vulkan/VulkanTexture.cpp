@@ -4,6 +4,7 @@
 
 #include "VulkanBuffer.h"
 #include "VulkanDevice.h"
+#include "VulkanPhysicalDeviceUtils.h"
 #include "VulkanSampler.h"
 
 namespace PixieRenderer {
@@ -63,8 +64,18 @@ void VulkanTexture::Load(const Image2D* image, uint32_t mipmapLevels) {
 	    m_memory
 	);
 
-	TransitionLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-
+	m_device.TransitionImageSingleTime(
+	    m_image,
+	    VK_IMAGE_LAYOUT_UNDEFINED,
+	    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+	    0,
+	    VK_ACCESS_TRANSFER_WRITE_BIT,
+	    VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+	    VK_PIPELINE_STAGE_TRANSFER_BIT,
+	    VulkanPhysicalDeviceUtils::GetAspectMask(m_format),
+	    1,
+	    1
+	);
 	m_device.CopyBufferToImage(stagingBuffer.GetBuffer(), m_image, m_width, m_height);
 
 	m_device
@@ -72,7 +83,18 @@ void VulkanTexture::Load(const Image2D* image, uint32_t mipmapLevels) {
 
 	GenerateMipmaps();
 
-	TransitionLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	m_device.TransitionImageSingleTime(
+	    m_image,
+	    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+	    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+	    VK_ACCESS_TRANSFER_WRITE_BIT,
+	    VK_ACCESS_SHADER_READ_BIT,
+	    VK_PIPELINE_STAGE_TRANSFER_BIT,
+	    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+	    VK_IMAGE_ASPECT_COLOR_BIT,
+	    1,
+	    1
+	);
 
 	if (!m_sampler) {
 		m_sampler = std::make_shared<VulkanSampler>(m_device);
@@ -125,6 +147,10 @@ VkSampler VulkanTexture::GetSampler() const {
 	return m_sampler != nullptr ? m_sampler->GetSampler() : VK_NULL_HANDLE;
 }
 
+VkImage VulkanTexture::GetImage() const {
+	return m_image;
+}
+
 void VulkanTexture::SetSampler(const std::shared_ptr<VulkanSampler>& sampler) {
 	m_sampler = sampler;
 }
@@ -166,7 +192,7 @@ void VulkanTexture::Transition(
     VkPipelineStageFlags dstStage,
     VkImageAspectFlags aspectMask
 ) {
-	m_device.TransitionImage(
+	m_device.TransitionImageSingleTime(
 	    m_image,
 	    m_imageLayout,
 	    newLayout,
@@ -175,13 +201,9 @@ void VulkanTexture::Transition(
 	    srcStage,
 	    dstStage,
 	    aspectMask,
+	    1,
 	    m_mipLevels
 	);
-	m_imageLayout = newLayout;
-}
-
-void VulkanTexture::TransitionLayout(VkImageLayout newLayout) {
-	m_device.TransitionImageLayout(m_image, m_format, m_imageLayout, newLayout, m_mipLevels);
 	m_imageLayout = newLayout;
 }
 

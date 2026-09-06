@@ -30,6 +30,7 @@ class VulkanSwapchain {
 	}
 
 	void Transition(
+		VkCommandBuffer cmdBuf,
 	    VkImageLayout newLayout,
 	    VkAccessFlags srcAccessMask,
 	    VkAccessFlags dstAccessMask,

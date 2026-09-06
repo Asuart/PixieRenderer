@@ -88,14 +88,7 @@ class VulkanDevice {
 	VkCommandBuffer BeginSingleTimeCommands();
 	void EndSingleTimeCommands(VkCommandBuffer commandBuffer);
 
-	void TransitionImageLayout(
-	    VkImage image,
-	    VkFormat format,
-	    VkImageLayout oldLayout,
-	    VkImageLayout newLayout,
-	    uint32_t mipLevels
-	);
-	void TransitionImage(
+	void TransitionImageSingleTime(
 	    VkImage image,
 	    VkImageLayout oldLayout,
 	    VkImageLayout newLayout,
@@ -104,7 +97,21 @@ class VulkanDevice {
 	    VkPipelineStageFlags srcStage,
 	    VkPipelineStageFlags dstStage,
 	    VkImageAspectFlags aspectMask,
-	    uint32_t mipLevels = 1
+	    uint32_t layersCount,
+	    uint32_t mipLevels
+	);
+	void TransitionImage(
+	    VkCommandBuffer cmdBuf,
+	    VkImage image,
+	    VkImageLayout oldLayout,
+	    VkImageLayout newLayout,
+	    VkAccessFlags srcAccessMask,
+	    VkAccessFlags dstAccessMask,
+	    VkPipelineStageFlags srcStage,
+	    VkPipelineStageFlags dstStage,
+	    VkImageAspectFlags aspectMask,
+		uint32_t layersCount,
+	    uint32_t mipLevels
 	);
 
 	QueueFamilyIndices GetQueueFamilyIndices() const;

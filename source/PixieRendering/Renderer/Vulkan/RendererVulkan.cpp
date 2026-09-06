@@ -150,8 +150,6 @@ void RendererVulkan::EndFrame() {
 	}
 
 	m_currentFrame = (m_currentFrame + 1) % cMaxFramesInFlight;
-
-	WaitIdle();
 }
 
 void RendererVulkan::BeginRenderPass(FrameBufferHandle handle) {
@@ -170,13 +168,18 @@ void RendererVulkan::BeginRenderPass(FrameBufferHandle handle) {
 	if (m_activeFrameBuffer) {
 		VulkanFrameBuffer& fb = m_resourceManager.GetFrameBufferEntry(m_activeFrameBuffer);
 
-		fb.Transition(
+		m_device.TransitionImage(
+		    m_commandBuffers[m_currentFrame],
+		    fb.GetColorImage(),
+		    VK_IMAGE_LAYOUT_UNDEFINED,
 		    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-		    VK_ACCESS_SHADER_READ_BIT,
+		    0,
 		    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-		    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+		    VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
 		    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-		    VK_IMAGE_ASPECT_COLOR_BIT
+		    VK_IMAGE_ASPECT_COLOR_BIT,
+		    1,
+			1
 		);
 
 		framebuffer = fb.GetFrameBuffer();
@@ -186,6 +189,7 @@ void RendererVulkan::BeginRenderPass(FrameBufferHandle handle) {
 		scissor = fb.GetScissor();
 	} else {
 		m_swapchain->Transition(
+		    m_commandBuffers[m_currentFrame],
 		    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
 		    VK_ACCESS_MEMORY_READ_BIT,
 		    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
@@ -230,12 +234,13 @@ void RendererVulkan::EndRenderPass() {
 	if (m_activeFrameBuffer) {
 		VulkanFrameBuffer& fb = m_resourceManager.GetFrameBufferEntry(m_activeFrameBuffer);
 		fb.Transition(
-		    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-		    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-		    VK_ACCESS_SHADER_READ_BIT,
+		    m_commandBuffers[m_currentFrame],
+		    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,     
+		    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,         
+		    VK_ACCESS_SHADER_READ_BIT,                    
 		    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-		    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-		    VK_IMAGE_ASPECT_COLOR_BIT
+		    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,        
+		    VK_IMAGE_ASPECT_COLOR_BIT                     
 		);
 	} else {
 		m_swapchain->SetImageLayout(m_nextImageIndex, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);

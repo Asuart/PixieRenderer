@@ -31,10 +31,7 @@ class VulkanTexture {
 	VkFormat GetFormat() const;
 	VkImageView GetImageView() const;
 	VkSampler GetSampler() const;
-
-	VkImage GetImage() const {
-		return m_image;
-	}
+	VkImage GetImage() const;
 
 	void SetSampler(const std::shared_ptr<VulkanSampler>& sampler);
 	void SetWrap(
@@ -53,7 +50,6 @@ class VulkanTexture {
 	    VkPipelineStageFlags dstStage,
 	    VkImageAspectFlags aspectMask
 	);
-	void TransitionLayout(VkImageLayout newLayout);
 
   private:
 	VulkanDevice& m_device;

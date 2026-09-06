@@ -101,11 +101,16 @@ VulkanSwapchain::VulkanSwapchain(
 	    1,
 	    m_depthImageView
 	);
-	m_device.TransitionImageLayout(
+	m_device.TransitionImageSingleTime(
 	    m_depthImage,
-	    m_depthFormat,
 	    VK_IMAGE_LAYOUT_UNDEFINED,
 	    VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+	    0,
+	    VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+	    VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+	    VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+	    VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT,
+	    1,
 	    1
 	);
 
@@ -188,6 +193,7 @@ uint64_t VulkanSwapchain::GetImageCount() const {
 }
 
 void VulkanSwapchain::Transition(
+    VkCommandBuffer cmdBuf,
     VkImageLayout newLayout,
     VkAccessFlags srcAccessMask,
     VkAccessFlags dstAccessMask,
@@ -197,6 +203,7 @@ void VulkanSwapchain::Transition(
     uint32_t frameIndex
 ) {
 	m_device.TransitionImage(
+	    cmdBuf,
 	    m_images[frameIndex],
 	    m_imageLayouts[frameIndex],
 	    newLayout,
@@ -205,6 +212,7 @@ void VulkanSwapchain::Transition(
 	    srcStage,
 	    dstStage,
 	    aspectMask,
+	    1,
 	    1
 	);
 	m_imageLayouts[frameIndex] = newLayout;

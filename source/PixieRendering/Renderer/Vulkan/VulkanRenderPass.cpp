@@ -98,6 +98,7 @@ void VulkanRenderPass::Begin(
     VulkanFrameBuffer& frameBuffer
 ) {
 	frameBuffer.Transition(
+		cmdBuf,
 	    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
 	    VK_ACCESS_MEMORY_READ_BIT,
 	    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,

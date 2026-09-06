@@ -45,6 +45,7 @@ class VulkanFrameBuffer {
 	void Resize(VkExtent2D extent);
 
 	void Transition(
+	    VkCommandBuffer cmdBuf,
 	    VkImageLayout newLayout,
 	    VkAccessFlags srcAccessMask,
 	    VkAccessFlags dstAccessMask,
@@ -52,7 +53,6 @@ class VulkanFrameBuffer {
 	    VkPipelineStageFlags dstStage,
 	    VkImageAspectFlags aspectMask
 	);
-	void TransitionLayout(VkImageLayout newLayout);
 
   private:
 	VulkanDevice& m_device;
