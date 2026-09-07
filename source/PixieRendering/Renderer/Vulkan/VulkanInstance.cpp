@@ -3,18 +3,13 @@
 #include <iostream>
 #include <stdexcept>
 
+#include "VulkanConfig.h"
 #include "DebugVulkan.h"
 #include "VulkanConfig.h"
 #include "VulkanDevice.h"
 #include "VulkanPhysicalDeviceUtils.h"
 
 namespace PixieRenderer {
-
-#ifdef NDEBUG
-const bool enableValidationLayers = false;
-#else
-const bool enableValidationLayers = true;
-#endif
 
 const std::vector<const char*> validationLayers = { "VK_LAYER_KHRONOS_validation" };
 const std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
