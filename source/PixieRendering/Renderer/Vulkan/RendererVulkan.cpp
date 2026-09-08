@@ -71,6 +71,9 @@ void RendererVulkan::Cleanup() {
 
 bool RendererVulkan::BeginFrame() {
 	if (m_swapchainNeedsRecreate) {
+		if (m_surfaceResolution.x == 0 || m_surfaceResolution.y == 0) {
+			return false;
+		}
 		RecreateSwapChain();
 		m_swapchainNeedsRecreate = false;
 	}
@@ -632,6 +635,7 @@ void RendererVulkan::RecreateSwapChain() {
 	}
 	m_renderFinishedSemaphores.clear();
 
+	m_swapchain.reset();
 	m_swapchain = std::make_unique<VulkanSwapchain>(
 	    m_device,
 	    VkExtent2D{ m_surfaceResolution.x, m_surfaceResolution.y },

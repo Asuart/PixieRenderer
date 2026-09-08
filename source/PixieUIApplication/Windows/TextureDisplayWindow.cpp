@@ -142,6 +142,7 @@ void TextureDisplayWindow::OnBeforeDraw() {
 
 	m_renderer->LoadUniformBuffer(m_shader, "PlaneUBO", &planeUBO, sizeof(PlaceUBO));
 
+	m_renderer->WaitIdle();
 	m_renderer->ResizeFrameBuffer(m_frameBuffer, m_viewportResolution);
 	m_renderer->BeginRenderPass(m_frameBuffer);
 

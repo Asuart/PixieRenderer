@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "VulkanDevice.h"
+#include "VulkanPhysicalDeviceUtils.h"
 
 namespace PixieRenderer {
 
@@ -109,7 +110,7 @@ VulkanSwapchain::VulkanSwapchain(
 	    VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
 	    VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
 	    VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
-	    VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT,
+	    VulkanPhysicalDeviceUtils::GetAspectMask(m_depthFormat),
 	    1,
 	    1
 	);
