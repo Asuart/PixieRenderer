@@ -27,9 +27,6 @@ VulkanInstance::~VulkanInstance() {
 }
 
 void VulkanInstance::Initialize(std::vector<const char*> requiredExtensions) {
-	PrintAvailableLayers();
-	PrintAvailableExtensions();
-
 	if (enableValidationLayers && !CheckValidationLayerSupport()) {
 		throw std::runtime_error("validation layers requested, but not available!");
 	}
@@ -182,7 +179,6 @@ void VulkanInstance::PrintAvailableLayers() {
 	for (const auto& layer : availableLayers) {
 		std::cout << "\t" << layer.layerName << " - " << layer.description << "\n";
 	}
-	std::cout << "\n";
 }
 
 void VulkanInstance::PrintAvailableExtensions() {
@@ -197,7 +193,6 @@ void VulkanInstance::PrintAvailableExtensions() {
 		std::cout << "\t" << extension.extensionName << " (Spec Version: " << extension.specVersion
 		          << ")\n";
 	}
-	std::cout << "\n";
 }
 
 } // namespace PixieRenderer

@@ -1,5 +1,7 @@
 #include "PBRMaterial.h"
 
+#include "PixieRendering/Renderer/IRenderer.h"
+
 static const char* vertexShaderSource = R"(
 #version 450
 
@@ -44,7 +46,6 @@ layout(set = 0, binding = 3, std140) uniform MaterialUBO {
     vec3 albedo;
     float metallic;
     float roughness;
-    float ao;
 } materialData;
 
 layout(set = 0, binding = 4) uniform sampler2D texSampler;
@@ -94,3 +95,74 @@ void main()
 }
 )";
 
+namespace PixieRenderer {
+
+glm::vec3 PBRMaterial::GetAlbedo() const {
+	return m_albedo;
+}
+
+float PBRMaterial::GetMetallic() const {
+	return m_metallic;
+}
+
+float PBRMaterial::GetRoughness() const {
+	return m_roughness;
+}
+
+TextureHandle PBRMaterial::GetAlbedoTexture() const {
+	return m_albedoTexture;
+}
+
+TextureHandle PBRMaterial::GetNormalTexture() const {
+	return m_normalTexture;
+}
+
+TextureHandle PBRMaterial::GetMetallicTexture() const {
+	return m_metallicTexture;
+}
+
+TextureHandle PBRMaterial::GetRoughnessTexture() const {
+	return m_roughnessTexture;
+}
+
+void PBRMaterial::SetAlbedo(glm::vec3 albedo) {
+	m_albedo = albedo;
+}
+
+void PBRMaterial::SetMetallic(float metallic) {
+	m_metallic = metallic;
+}
+
+void PBRMaterial::SetRoughness(float roughness) {
+	m_roughness = roughness;
+}
+
+void PBRMaterial::SetAlbedoTexture(TextureHandle texture) {
+	m_albedoTexture = texture;
+}
+
+void PBRMaterial::SetNormalTexture(TextureHandle texture) {
+	m_normalTexture = texture;
+}
+
+void PBRMaterial::SetMetallicTexture(TextureHandle texture) {
+	m_metallicTexture = texture;
+}
+
+void PBRMaterial::SetRoughnessTexture(TextureHandle texture) {
+	m_roughnessTexture = texture;
+}
+
+void PBRMaterial::Bind(IRenderer* renderer) {
+    struct PBRMaterialProps {
+		glm::vec3 albedo;
+		float metallic;
+		float roughness;
+    } props;
+	props.albedo = m_albedo;
+	props.metallic = m_metallic;
+	props.roughness = m_roughness;
+	renderer->LoadUniformBuffer(m_handle, "MaterialUBO", & props, sizeof(PBRMaterialProps));
+}
+
+} // namespace PixieRenderer

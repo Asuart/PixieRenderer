@@ -13,6 +13,8 @@ target_include_directories(SimpleScene PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_include_directories(SimpleScene PRIVATE "${CMAKE_SOURCE_DIR}/dependencies/tinyobjloader/")
 target_include_directories(SimpleScene PRIVATE "${CMAKE_SOURCE_DIR}/dependencies/stb/")
 
+target_link_libraries(SimpleScene PRIVATE ufbx)
+target_link_libraries(SimpleScene PRIVATE EnTT::EnTT)
 target_link_libraries(SimpleScene PRIVATE PixieUIApplication)
 
 if (MSVC)

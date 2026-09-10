@@ -17,8 +17,6 @@ void VulkanDevice::Initialize(
     VkSurfaceKHR surface,
     const std::vector<const char*>& deviceExtensions
 ) {
-	VulkanPhysicalDeviceUtils::PrintPhysicalDeviceProperties(physicalDevice);
-
 	m_physicalDevice = physicalDevice;
 	m_surface = surface;
 	m_queueFamilyIndices = VulkanPhysicalDeviceUtils::FindQueueFamilies(physicalDevice, surface);

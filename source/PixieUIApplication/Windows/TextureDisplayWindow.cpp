@@ -62,7 +62,7 @@ TextureDisplayWindow::TextureDisplayWindow(UI* ui, IRenderer* renderer, TextureH
 
 	SetTexture(texture);
 
-	Material mat{ VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE };
+	Material mat{ std::string("TextureDisplayShader"), VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE };
 	m_shader = m_renderer->CreateMaterial(&mat);
 
 	Mesh mesh;
@@ -88,7 +88,9 @@ TextureDisplayWindow::TextureDisplayWindow(
 
 	SetFrameBuffer(frameBuffer);
 
-	Material mat{ VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE };
+	Material mat{ std::string("TextureDisplayShader"),
+		          VERTEX_SHADER_SOURCE,
+		          FRAGMENT_SHADER_SOURCE };
 	m_shader = m_renderer->CreateMaterial(&mat);
 
 	Mesh mesh;

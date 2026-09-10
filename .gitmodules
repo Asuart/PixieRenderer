@@ -20,3 +20,10 @@
 [submodule "dependencies/stb"]
 	path = dependencies/stb
 	url = https://github.com/nothings/stb.git
+[submodule "dependencies/ufbx"]
+	path = dependencies/ufbx
+	url = https://github.com/ufbx/ufbx.git
+    branch = master
+[submodule "dependencies/entt"]
+	path = dependencies/entt
+	url = https://github.com/skypjack/entt.git
