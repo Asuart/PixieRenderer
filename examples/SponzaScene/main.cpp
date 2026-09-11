@@ -13,10 +13,12 @@
 #include <PixieRendering/Resources/Camera.h>
 
 #include <PixieApplication/Time/ApplicationTime.h>
+#include <PixieApplication/UserInput/UserInput.h>
+
 #include <PixieUIApplication/PixieUIApplication.h>
+#include <PixieUIApplication/Windows/ApplicationStatsWindow.h>
 #include <PixieUIApplication/Windows/DemoWindow.h>
 #include <PixieUIApplication/Windows/TextureDisplayWindow.h>
-#include <PixieUIApplication/Windows/ApplicationStatsWindow.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -26,6 +28,7 @@
 #include <entt/entt.hpp>
 
 using namespace PixieRenderer;
+using namespace PixieApp;
 
 static std::string UfbxStringToStd(const ufbx_string& s) {
 	if (!s.data)
@@ -60,6 +63,14 @@ struct MaterialComponent {
 
 struct CameraComponent {
 	Camera camera;
+
+	glm::vec3 position = glm::vec3(0.0f, 1.5f, -4.0f);
+	float yaw = -90.0f;
+	float pitch = 0.0f;
+	float moveSpeed = 3.0f;
+	float mouseSensitivity = 0.12f;
+	bool cursorCaptured = true;
+	bool lookEnabled = true;
 };
 
 class SponzaSceneApp : public PixieApp::PixieUIApplication {
@@ -67,6 +78,7 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 	std::vector<MeshHandle> m_meshes;
 	std::vector<PBRMaterial> m_materials;
 	std::vector<MaterialHandle> m_materialHandles;
+	std::unordered_map<std::string, TextureHandle> m_textureCache;
 
 	entt::registry m_registry;
 	entt::entity m_cameraEntity = entt::null;
@@ -83,15 +95,15 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 	}
 
 	void LoadScene(const std::string& path) {
-		glm::vec3 cameraPosition = glm::vec3(0.0f, 1.5f, -4.0f);
-		glm::vec3 center = glm::vec3(0.0f, 1.0f, 0.0f);
-
-		Camera camera;
-		camera.view = glm::lookAt(cameraPosition, center, glm::vec3(0.0f, 1.0f, 0.0f));
-		camera.projection = glm::perspective(glm::radians(45.0f), 16.0f / 9.0f, 0.1f, 5000.0f);
+		CameraComponent camComp;
+		camComp.position = glm::vec3(0.0f, 1.5f, -4.0f);
+		camComp.yaw = -90.0f;
+		camComp.pitch = -5.0f;
+		camComp.camera
+		    .projection = glm::perspective(glm::radians(45.0f), 16.0f / 9.0f, 0.1f, 5000.0f);
 
 		m_cameraEntity = m_registry.create();
-		m_registry.emplace<CameraComponent>(m_cameraEntity, CameraComponent{ camera });
+		m_registry.emplace<CameraComponent>(m_cameraEntity, camComp);
 
 		ufbx_error error;
 		ufbx_scene* scene = ufbx_load_file(path.c_str(), nullptr, &error);
@@ -118,21 +130,21 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 
 			if (um->pbr.base_color.texture) {
 				std::string texPath = UfbxStringToStd(um->pbr.base_color.texture->filename);
-				mat.SetAlbedoTexture(LoadTexture(texPath));
+				mat.SetAlbedoTexture(LoadTextureCached(texPath));
 			} else {
 				mat.SetAlbedoTexture(CreateFallbackTexture());
 			}
 			if (um->pbr.normal_map.texture) {
 				std::string texPath = UfbxStringToStd(um->pbr.normal_map.texture->filename);
-				mat.SetNormalTexture(LoadTexture(texPath));
+				mat.SetNormalTexture(LoadTextureCached(texPath));
 			}
 			if (um->pbr.metalness.texture) {
 				std::string texPath = UfbxStringToStd(um->pbr.metalness.texture->filename);
-				mat.SetMetallicTexture(LoadTexture(texPath));
+				mat.SetMetallicTexture(LoadTextureCached(texPath));
 			}
 			if (um->pbr.roughness.texture) {
 				std::string texPath = UfbxStringToStd(um->pbr.roughness.texture->filename);
-				mat.SetRoughnessTexture(LoadTexture(texPath));
+				mat.SetRoughnessTexture(LoadTextureCached(texPath));
 			}
 
 			m_materials.push_back(std::move(mat));
@@ -248,6 +260,15 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 		return fallbackHandle;
 	}
 
+	TextureHandle LoadTextureCached(const std::string& path) {
+		if (auto it = m_textureCache.find(path); it != m_textureCache.end()) {
+			return it->second;
+		}
+		TextureHandle h = LoadTexture(path);
+		m_textureCache.emplace(path, h);
+		return h;
+	}
+
 	TextureHandle LoadTexture(const std::string& filePath) {
 		int width = 0, height = 0, channels = 0;
 		stbi_uc* data = stbi_load(filePath.c_str(), &width, &height, &channels, 4);
@@ -271,6 +292,9 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 		m_ui->OnBeforeDrawFrame();
 
 		auto& camComp = m_registry.get<CameraComponent>(m_cameraEntity);
+
+		const float dt = PixieApp::Time::deltaTime;
+		UpdateFlyCamera(camComp, dt);
 
 		const auto res = m_window->GetResolution();
 		const float aspect = static_cast<float>(res.x) / static_cast<float>(res.y);
@@ -323,6 +347,70 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 		}
 
 		m_renderer->EndRenderPass();
+	}
+
+	void UpdateFlyCamera(CameraComponent& cam, float dt) {
+		//if (UserInput::IsKeyPressed(GLFW_KEY_TAB)) {
+		//	cam.cursorCaptured = !cam.cursorCaptured;
+		//}
+		//if (UserInput::IsKeyPressed(GLFW_KEY_ESCAPE)) {
+		//	cam.cursorCaptured = false;
+		//}
+		//if (!cam.cursorCaptured && UserInput::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_LEFT)) {
+		//	cam.cursorCaptured = true;
+		//}
+		//UserInput::SetCursorCaptured(cam.cursorCaptured);
+
+		//if (!cam.cursorCaptured) {
+		//	return;
+		//}
+
+		const glm::dvec2 md = UserInput::GetMouseDelta();
+		cam.yaw += static_cast<float>(md.x) * cam.mouseSensitivity;
+		cam.pitch -= static_cast<float>(md.y) * cam.mouseSensitivity;
+		cam.pitch = glm::clamp(cam.pitch, -89.0f, 89.0f);
+
+		const float yawRad = glm::radians(cam.yaw);
+		const float pitchRad = glm::radians(cam.pitch);
+		const glm::vec3 forward(
+		    std::cos(pitchRad) * std::cos(yawRad),
+		    std::sin(pitchRad),
+		    std::cos(pitchRad) * std::sin(yawRad)
+		);
+		const glm::vec3 worldUp(0.0f, 1.0f, 0.0f);
+		const glm::vec3 right = glm::normalize(glm::cross(forward, worldUp));
+
+		float speed = cam.moveSpeed;
+		if (UserInput::IsKeyDown(GLFW_KEY_LEFT_SHIFT)) {
+			speed *= 4.0f;
+		}
+
+		glm::vec3 vel(0.0f);
+		if (UserInput::IsKeyDown(GLFW_KEY_W)) {
+			vel += forward;
+		}
+		if (UserInput::IsKeyDown(GLFW_KEY_S)) {
+			vel -= forward;
+		}
+		if (UserInput::IsKeyDown(GLFW_KEY_D)) {
+			vel += right;
+		}
+		if (UserInput::IsKeyDown(GLFW_KEY_A)) {
+			vel -= right;	
+		}
+		if (UserInput::IsKeyDown(GLFW_KEY_SPACE)) {
+			vel += worldUp;
+		}
+		if (UserInput::IsKeyDown(GLFW_KEY_LEFT_CONTROL)) {
+			vel -= worldUp;
+		}
+
+		if (glm::length(vel) > 0.0f) {
+			vel = glm::normalize(vel);
+			cam.position += vel * speed * dt;
+		}
+
+		cam.camera.view = glm::lookAt(cam.position, cam.position + forward, worldUp);
 	}
 
   private:

@@ -22,6 +22,7 @@ PixieApplication::PixieApplication(
 	if (!m_renderer) {
 		throw "Failed to create renderer";
 	}
+	UserInput::Initialize(m_window->GetGLFWWindow());
 }
 
 void PixieApplication::Start() {
