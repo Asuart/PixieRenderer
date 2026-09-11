@@ -38,6 +38,7 @@ struct SpirVBinary {
 struct BindingsInfo {
 	std::vector<ShaderBinding> bindings;
 	std::vector<uint32_t> uniformBufferBindings;
+	uint32_t pushConstantSize = 0;
 };
 
 class ShaderCompiler {

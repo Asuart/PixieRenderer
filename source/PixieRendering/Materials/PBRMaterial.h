@@ -9,6 +9,10 @@ namespace PixieRenderer {
 
 class PBRMaterial : public Material {
   public:
+	MaterialHandle m_handle;
+
+	PBRMaterial();
+
 	glm::vec3 GetAlbedo() const;
 	float GetMetallic() const;
 	float GetRoughness() const;
@@ -28,7 +32,6 @@ class PBRMaterial : public Material {
 	void Bind(IRenderer* renderer) override;
 
   private:
-	MaterialHandle m_handle;
 	glm::vec3 m_albedo = glm::vec3(1.0f, 1.0f, 1.0f);
 	float m_metallic = 0.0f;
 	float m_roughness = 1.0f;

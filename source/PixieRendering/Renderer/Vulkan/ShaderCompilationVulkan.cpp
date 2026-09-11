@@ -122,6 +122,7 @@ CompiledShader ShaderCompilerVulkan::CompileShader(
 			finalInfo.uniformBufferBindings.push_back(binding.binding);
 		}
 	}
+	finalInfo.pushConstantSize = std::max(vertexInfo.pushConstantSize, fragmentInfo.pushConstantSize);
 
 	VkShaderModule vertShaderModule = CreateShaderModule(device, vertexBinary);
 	VkShaderModule fragShaderModule = CreateShaderModule(device, fragmentBinary);
@@ -156,7 +157,6 @@ CompiledComputeShader ShaderCompilerVulkan::CompileComputeShader(
 
 	SpirVBinary computeBinary = CompileShaderToSPIRV(GLSLANG_STAGE_COMPUTE, source);
 	VkShaderModule shaderModule = CreateShaderModule(device, computeBinary);
-	delete[] computeBinary.words;
 
 	VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
 	vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -165,6 +165,8 @@ CompiledComputeShader ShaderCompilerVulkan::CompileComputeShader(
 	vertShaderStageInfo.pName = "main";
 
 	BindingsInfo bindingInfo = ReflectSPIRV(computeBinary);
+
+	delete[] computeBinary.words;
 
 	return { shaderModule, vertShaderStageInfo, bindingInfo };
 }
@@ -222,6 +224,14 @@ BindingsInfo ShaderCompilerVulkan::ReflectSPIRV(const SpirVBinary& binary) {
 	);
 	add_bindings(resources.separate_images, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_ALL);
 	add_bindings(resources.separate_samplers, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_ALL);
+
+	uint32_t pushSize = 0;
+	for (const auto& res : resources.push_constant_buffers) {
+		auto type = compiler->get_type(res.base_type_id);
+		uint32_t sz = static_cast<uint32_t>(compiler->get_declared_struct_size(type));
+		pushSize = std::max(pushSize, sz);
+	}
+	result.pushConstantSize = pushSize;
 
 	delete compiler;
 

@@ -1,5 +1,7 @@
+#include <algorithm>
 #include <filesystem>
 #include <iostream>
+#include <unordered_map>
 
 #include <GLFW/glfw3.h>
 
@@ -20,103 +22,74 @@
 
 #include <ufbx.h>
 
+#include <entt/entt.hpp>
+
 using namespace PixieRenderer;
 
-const char* vertexShaderSource = R"(
-#version 450
-
-layout(location = 0) in vec3 aPos;
-layout(location = 1) in vec3 aNormal;
-layout(location = 2) in vec2 aTexCoord;
-layout(location = 3) in ivec4 boneIDs; 
-layout(location = 4) in vec4 boneWeights; 
-
-layout(location = 0) out vec2 TexCoord;
-
-layout(set = 0, binding = 1, std140) uniform CameraUBO {
-    mat4 view;
-    mat4 projection;
-} camera;
-
-layout(set = 0, binding = 0, std140) uniform ModelUBO {
-    mat4 model;
-} modelData;
-
-void main()
-{
-    gl_Position = camera.projection * camera.view * modelData.model * vec4(aPos * 0.25, 1.0);
-    TexCoord = aTexCoord;
-}
-)";
-
-const char* fragmentShaderSource = R"(
-#version 450
-
-layout(location = 0) in vec2 TexCoord;
-layout(location = 0) out vec4 FragColor;
-
-layout(set = 0, binding = 2) uniform sampler2D texSampler;
-
-void main()
-{
-    FragColor = texture(texSampler, TexCoord);
-}
-)";
-
-std::string GetDirectory(const std::string& path) {
-	size_t pos = path.find_last_of("/\\");
-	if (pos == std::string::npos) {
+static std::string UfbxStringToStd(const ufbx_string& s) {
+	if (!s.data)
 		return std::string();
-	}
-	return path.substr(0, pos + 1);
-}
-
-std::string UfbxStringToStd(const ufbx_string& s) {
-	if (!s.data) {
-		return std::string();
-	}
 	return std::string(s.data, s.length);
 }
+
+static glm::mat4 UfbxMatrixToGlm(const ufbx_matrix& m) {
+	glm::mat4 result(1.0f);
+	result[0] = glm::vec4(m.cols[0].x, m.cols[0].y, m.cols[0].z, 0.0f);
+	result[1] = glm::vec4(m.cols[1].x, m.cols[1].y, m.cols[1].z, 0.0f);
+	result[2] = glm::vec4(m.cols[2].x, m.cols[2].y, m.cols[2].z, 0.0f);
+
+	const ufbx_vec3 t = ufbx_transform_position(&m, ufbx_vec3{ 0.0, 0.0, 0.0 });
+	result[3] = glm::vec4(t.x, t.y, t.z, 1.0f);
+
+	return result;
+}
+
+struct TransformComponent {
+	glm::mat4 transform = glm::mat4(1.0f);
+};
+
+struct MeshComponent {
+	MeshHandle mesh{};
+};
+
+struct MaterialComponent {
+	MaterialHandle materialHandle{};
+	PBRMaterial* material = nullptr;
+};
+
+struct CameraComponent {
+	Camera camera;
+};
 
 class SponzaSceneApp : public PixieApp::PixieUIApplication {
   public:
 	std::vector<MeshHandle> m_meshes;
 	std::vector<PBRMaterial> m_materials;
 	std::vector<MaterialHandle> m_materialHandles;
-	std::vector<std::pair<uint32_t, uint32_t>> m_materialAssignments;
 
-	SponzaSceneApp(const char* path, const std::string& scenePath)
-	    : PixieUIApplication("Simple scene", { 1280, 720 }, RenderAPI::Vulkan, true) {
+	entt::registry m_registry;
+	entt::entity m_cameraEntity = entt::null;
+
+	SponzaSceneApp(const std::string& scenePath)
+	    : PixieUIApplication("Sponza scene", { 1280, 720 }, RenderAPI::Vulkan, true) {
 		m_frameBuffer = m_renderer->CreateFrameBuffer({ 1280, 720 }, TextureFormat::RGBA32f);
 
 		m_ui->AddWindow(new PixieUI::DemoWindow(m_ui, m_renderer));
 		m_ui->AddWindow(new PixieUI::TextureDisplayWindow(m_ui, m_renderer, m_frameBuffer));
 
-		std::filesystem::path appPath = std::filesystem::path(path);
-
 		LoadScene(scenePath);
-
-		glm::vec3 cameraPosition = glm::vec3(0.0f, 0.0f, -5.0f);
-		glm::vec3 center = glm::vec3(0.0f, 0.0f, 0.0f);
-		m_camera.view = glm::lookAt(cameraPosition, center, glm::vec3(0.0f, 1.0f, 0.0f));
 	}
 
 	void LoadScene(const std::string& path) {
+		glm::vec3 cameraPosition = glm::vec3(0.0f, 1.5f, -4.0f);
+		glm::vec3 center = glm::vec3(0.0f, 1.0f, 0.0f);
 
-		//entt::registry registry;
+		Camera camera;
+		camera.view = glm::lookAt(cameraPosition, center, glm::vec3(0.0f, 1.0f, 0.0f));
+		camera.projection = glm::perspective(glm::radians(45.0f), 16.0f / 9.0f, 0.1f, 5000.0f);
 
-		//entt::entity player = registry.create();
-		//registry.emplace<TransformComponent>(player, 10.0f, 20.0f);
-		//registry.emplace<SpriteComponent>(player, "player_sheet.png", 0xFF0000FF); // Red player
-
-		//for (int i = 0; i (tree, i * 50.0f, 0.0f);
-		//	registry.emplace<SpriteComponent>(tree, "tree.png", 0x00FF00FF); // Green tree
-		//}
-
-		//entt::entity camera = registry.create();
-		//registry.emplace<TransformComponent>(camera, 0.0f, 0.0f);
-		//registry.emplace<CameraComponent>(camera, 1.5f);
-
+		m_cameraEntity = m_registry.create();
+		m_registry.emplace<CameraComponent>(m_cameraEntity, CameraComponent{ camera });
 
 		ufbx_error error;
 		ufbx_scene* scene = ufbx_load_file(path.c_str(), nullptr, &error);
@@ -124,57 +97,58 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 			std::cerr << "Failed to load FBX: "
 			          << (error.description.data ? error.description.data : "unknown error")
 			          << std::endl;
-			exit(1);
+			std::exit(1);
 		}
 
 		m_materials.reserve(scene->materials.count);
+		m_materialHandles.reserve(scene->materials.count);
+
 		for (size_t i = 0; i < scene->materials.count; i++) {
 			ufbx_material* um = scene->materials.data[i];
+
 			PBRMaterial mat;
 			mat.name = UfbxStringToStd(um->name);
 
 			const ufbx_vec4 base = um->pbr.base_color.value_vec4;
 			mat.SetAlbedo(glm::vec3(base.x, base.y, base.z));
-
 			mat.SetMetallic(static_cast<float>(um->pbr.metalness.value_real));
 			mat.SetRoughness(static_cast<float>(um->pbr.roughness.value_real));
 
 			if (um->pbr.base_color.texture) {
-				std::string texturePath = UfbxStringToStd(um->pbr.base_color.texture->filename);
-				TextureHandle handle = LoadTexture(texturePath);
-				mat.SetAlbedoTexture(handle);
+				std::string texPath = UfbxStringToStd(um->pbr.base_color.texture->filename);
+				mat.SetAlbedoTexture(LoadTexture(texPath));
+			} else {
+				mat.SetAlbedoTexture(CreateFallbackTexture());
 			}
 			if (um->pbr.normal_map.texture) {
-				std::string texturePath = UfbxStringToStd(um->pbr.normal_map.texture->filename);
-				TextureHandle handle = LoadTexture(texturePath);
-				mat.SetAlbedoTexture(handle);
+				std::string texPath = UfbxStringToStd(um->pbr.normal_map.texture->filename);
+				mat.SetNormalTexture(LoadTexture(texPath));
 			}
 			if (um->pbr.metalness.texture) {
-				std::string texturePath = UfbxStringToStd(um->pbr.metalness.texture->filename);
-				TextureHandle handle = LoadTexture(texturePath);
-				mat.SetAlbedoTexture(handle);
+				std::string texPath = UfbxStringToStd(um->pbr.metalness.texture->filename);
+				mat.SetMetallicTexture(LoadTexture(texPath));
 			}
 			if (um->pbr.roughness.texture) {
-				std::string texturePath = UfbxStringToStd(um->pbr.roughness.texture->filename);
-				TextureHandle handle = LoadTexture(texturePath);
-				mat.SetAlbedoTexture(handle);
+				std::string texPath = UfbxStringToStd(um->pbr.roughness.texture->filename);
+				mat.SetRoughnessTexture(LoadTexture(texPath));
 			}
 
-			m_materials.push_back(mat);
-
-			MaterialHandle materialHandle = m_renderer->CreateMaterial(&mat);
+			m_materials.push_back(std::move(mat));
+			m_materialHandles.push_back(m_renderer->CreateMaterial(&m_materials.back()));
 		}
 
 		for (size_t ni = 0; ni < scene->nodes.count; ni++) {
 			ufbx_node* node = scene->nodes.data[ni];
 			if (!node->mesh)
 				continue;
+			if (!node->visible)
+				continue;
 
 			ufbx_mesh* umesh = node->mesh;
 			if (umesh->num_faces == 0 || umesh->num_triangles == 0)
 				continue;
 
-			const ufbx_matrix& world = node->geometry_to_world;
+			const glm::mat4 worldMatrix = UfbxMatrixToGlm(node->geometry_to_world);
 
 			std::unordered_map<uint32_t, Mesh*> meshesByMaterial;
 
@@ -187,9 +161,8 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 				}
 
 				Mesh*& mesh = meshesByMaterial[matId];
-				if (!mesh) {
+				if (!mesh)
 					mesh = new Mesh();
-				}
 
 				for (uint32_t i = 2; i < face.num_indices; i++) {
 					const uint32_t tri[3] = { face.index_begin,
@@ -202,15 +175,15 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 						Vertex vertex{};
 
 						ufbx_vec3 p = ufbx_get_vertex_vec3(&umesh->vertex_position, vi);
-						p = ufbx_transform_position(&world, p);
 						vertex.position = glm::vec3(p.x, p.y, p.z);
 
 						if (umesh->vertex_normal.exists) {
 							ufbx_vec3 n = ufbx_get_vertex_vec3(&umesh->vertex_normal, vi);
-							n = ufbx_transform_direction(&world, n);
 							glm::vec3 gn(n.x, n.y, n.z);
 							const float len = glm::length(gn);
-							vertex.normal = (len > 1e-8f) ? gn / len : glm::vec3(0.0f, 0.0f, 1.0f);
+							vertex.normal = (len > 1e-8f) ? gn / len : glm::vec3(0.0f, 1.0f, 0.0f);
+						} else {
+							vertex.normal = glm::vec3(0.0f, 1.0f, 0.0f);
 						}
 
 						if (umesh->vertex_uv.exists) {
@@ -223,65 +196,139 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 					}
 				}
 			}
+
+			for (auto& [matId, mesh] : meshesByMaterial) {
+				if (!mesh || mesh->vertexes.empty()) {
+					delete mesh;
+					continue;
+				}
+
+				MeshHandle meshHandle = m_renderer->CreateMesh(mesh);
+				m_meshes.push_back(meshHandle);
+				delete mesh;
+
+				MaterialHandle matHandle{};
+				PBRMaterial* material = nullptr;
+				if (!m_materialHandles.empty()) {
+					size_t safeId = std::min<size_t>(matId, m_materialHandles.size() - 1);
+					matHandle = m_materialHandles[safeId];
+					material = &m_materials[safeId];
+					material->m_handle = matHandle;
+				}
+
+				entt::entity e = m_registry.create();
+				m_registry.emplace<TransformComponent>(e, TransformComponent{ worldMatrix });
+				m_registry.emplace<MeshComponent>(e, MeshComponent{ meshHandle });
+				m_registry.emplace<MaterialComponent>(e, MaterialComponent{ matHandle, material });
+			}
 		}
 
 		ufbx_free_scene(scene);
 
 		std::cout << "FBX loaded: " << m_meshes.size() << " mesh(es), " << m_materials.size()
 		          << " material(s)." << std::endl;
+		std::cout << "Mesh entities created: " << m_registry.view<MeshComponent>().size()
+		          << std::endl;
+	}
+
+	TextureHandle CreateFallbackTexture() {
+		static TextureHandle fallbackHandle;
+		if (fallbackHandle) {
+			return fallbackHandle;
+		}
+
+		Image2D fallback;
+		fallback.resolution = glm::ivec2(1, 1);
+		fallback.format = TextureFormat::RGBA8;
+		fallback.pixels = { 255, 255, 255, 255 };
+		fallbackHandle = m_renderer->CreateTexture(&fallback);
+
+		return fallbackHandle;
 	}
 
 	TextureHandle LoadTexture(const std::string& filePath) {
-		int width, height, channels;
+		int width = 0, height = 0, channels = 0;
 		stbi_uc* data = stbi_load(filePath.c_str(), &width, &height, &channels, 4);
 
 		if (!data) {
-			std::cout << "failed to load texture\n";
-			exit(2);
+			std::cout << "Failed to load texture: " << filePath << " — using 1x1 white fallback.\n";
+			return CreateFallbackTexture();
 		}
 
 		Image2D image;
 		image.resolution = glm::ivec2(width, height);
 		image.format = TextureFormat::RGBA8;
-		image.pixels.resize(width * height * 4);
-		memcpy(image.pixels.data(), data, image.pixels.size());
+		image.pixels.resize(static_cast<size_t>(width) * height * 4);
+		std::memcpy(image.pixels.data(), data, image.pixels.size());
 
 		stbi_image_free(data);
-
 		return m_renderer->CreateTexture(&image);
 	}
 
 	void BeforeDrawFrame() override {
 		m_ui->OnBeforeDrawFrame();
 
-		glm::mat4 model = glm::mat4(1.0f);
-		m_angle += PixieApp::Time::deltaTime * 0.5f;
-		model = glm::rotate(model, m_angle, glm::vec3(0.0f, 1.0f, 0.0f));
-		model = glm::rotate(model, m_angle * 0.7f, glm::vec3(1.0f, 0.0f, 0.0f));
-		model = glm::rotate(model, m_angle * 0.3f, glm::vec3(0.0f, 0.0f, 1.0f));
-		m_renderer->LoadUniformBuffer(m_materialHandle, "ModelUBO", &model, sizeof(glm::mat4));
+		auto& camComp = m_registry.get<CameraComponent>(m_cameraEntity);
 
-		float aspect = static_cast<float>(m_window->GetResolution().x) /
-		               m_window->GetResolution().y;
-		m_camera.projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 1000.0f);
-		m_renderer->LoadUniformBuffer(m_materialHandle, "CameraUBO", &m_camera, sizeof(Camera));
+		const auto res = m_window->GetResolution();
+		const float aspect = static_cast<float>(res.x) / static_cast<float>(res.y);
+		camComp.camera.projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 5000.0f);
 
-		m_renderer->BindTexture(m_materialHandle, "texSampler", m_texture, 0);
+		const float t = static_cast<float>(glfwGetTime());
+		constexpr float kSpeed = 0.5f;
+		constexpr float kRadius = 6.0f;
+		const glm::vec3 center(0.0f, 1.0f, 0.0f);
+
+		const float angle = t * kSpeed;
+		const glm::vec3 cameraPosition(
+		    center.x + kRadius * std::sin(angle),
+		    center.y + 1.5f,
+		    center.z + kRadius * std::cos(angle)
+		);
+
+		camComp.camera.view = glm::lookAt(cameraPosition, center, glm::vec3(0.0f, 1.0f, 0.0f));
+
+		const glm::vec4 camPos = glm::vec4(glm::vec3(glm::inverse(camComp.camera.view)[3]), 1.0f);
+
+		for (size_t i = 0; i < m_materials.size(); i++) {
+			m_materials[i].Bind(m_renderer);
+
+			m_renderer->LoadUniformBuffer(
+			    m_materials[i].m_handle,
+			    "CameraUBO",
+			    &camComp.camera,
+			    sizeof(Camera)
+			);
+
+			m_renderer->LoadUniformBuffer(
+			    m_materials[i].m_handle,
+			    "CameraPosition",
+			    &camPos,
+			    sizeof(glm::vec4)
+			);
+		}
 
 		m_renderer->BeginRenderPass(m_frameBuffer);
-		m_renderer->DrawMesh(m_meshHandle, m_materialHandle);
+
+		auto view = m_registry.view<TransformComponent, MeshComponent, MaterialComponent>();
+		for (auto [entity, transform, meshComp, matComp] : view.each()) {
+			m_renderer->DrawMesh(
+			    meshComp.mesh,
+			    matComp.materialHandle,
+			    &transform.transform,
+			    sizeof(glm::mat4)
+			);
+		}
+
 		m_renderer->EndRenderPass();
 	}
 
   private:
 	FrameBufferHandle m_frameBuffer;
-	Camera m_camera;
-	float m_angle = 0.0f;
 };
 
 int32_t main(int argc, char** argv) {
 	SponzaSceneApp* app = new SponzaSceneApp(
-	    argv[0],
 	    "C:/Repos/PixieRendering/assets/main_sponza/NewSponza_Main_Yup_003.fbx"
 	);
 

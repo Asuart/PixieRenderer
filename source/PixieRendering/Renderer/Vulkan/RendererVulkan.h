@@ -28,7 +28,12 @@ class RendererVulkan : public IRenderer {
 
 	MeshHandle CreateMesh(const Mesh* mesh) override;
 	void LoadMesh(MeshHandle handle, const Mesh* mesh) override;
-	void DrawMesh(MeshHandle meshHandle, MaterialHandle materialHandle) override;
+	void DrawMesh(
+	    MeshHandle meshHandle,
+	    MaterialHandle materialHandle,
+	    void* pushConstantsData = nullptr,
+	    uint32_t pushConstantdsDataSize = 0
+	) override;
 
 	FrameBufferHandle CreateFrameBuffer(glm::uvec2 resolution, TextureFormat format, bool isPresent)
 	    override;

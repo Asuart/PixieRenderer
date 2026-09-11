@@ -4,10 +4,10 @@
 #include "../Window/Window.h"
 
 #include "PixieRendering/RenderAPI.h"
-#include "PixieRendering/Resources/ResourceHandles.h"
 #include "PixieRendering/Resources/Image2D.h"
 #include "PixieRendering/Resources/Material.h"
 #include "PixieRendering/Resources/Mesh.h"
+#include "PixieRendering/Resources/ResourceHandles.h"
 #include "PixieRendering/TextureEnums.h"
 
 namespace PixieRenderer {
@@ -42,9 +42,18 @@ class IRenderer {
 
 	virtual MeshHandle CreateMesh(const Mesh* mesh) = 0;
 	virtual void LoadMesh(MeshHandle handle, const Mesh* mesh) = 0;
-	virtual void DrawMesh(MeshHandle meshHandle, MaterialHandle materialHandle) = 0;
+	virtual void DrawMesh(
+	    MeshHandle meshHandle,
+	    MaterialHandle materialHandle,
+	    void* pushConstantsData = nullptr,
+	    uint32_t pushConstantdsDataSize = 0
+	) = 0;
 
-	virtual FrameBufferHandle CreateFrameBuffer(glm::uvec2 resolution, TextureFormat format, bool isPresentBuffer = false) = 0;
+	virtual FrameBufferHandle CreateFrameBuffer(
+	    glm::uvec2 resolution,
+	    TextureFormat format,
+	    bool isPresentBuffer = false
+	) = 0;
 	virtual void ResizeFrameBuffer(FrameBufferHandle handle, glm::uvec2 resolution) = 0;
 	virtual glm::uvec2 GetFrameBufferResolution(FrameBufferHandle handle) = 0;
 
@@ -75,8 +84,10 @@ class IRenderer {
 	    uint32_t index
 	) = 0;
 
-	virtual ShaderStorageBufferHandle
-	CreateShaderStorageBuffer(const uint8_t* data, uint32_t size) = 0;
+	virtual ShaderStorageBufferHandle CreateShaderStorageBuffer(
+	    const uint8_t* data,
+	    uint32_t size
+	) = 0;
 	virtual void LoadShaderStorageBuffer(
 	    ShaderStorageBufferHandle handle,
 	    const uint8_t* data,
@@ -90,8 +101,11 @@ class IRenderer {
 	) = 0;
 
 	virtual UniformBufferHandle CreateUniformBuffer(const uint8_t* data, uint32_t size) = 0;
-	virtual void
-	LoadUniformBuffer(UniformBufferHandle handle, const uint8_t* data, uint32_t size) = 0;
+	virtual void LoadUniformBuffer(
+	    UniformBufferHandle handle,
+	    const uint8_t* data,
+	    uint32_t size
+	) = 0;
 	virtual void LoadUniformBuffer(
 	    MaterialHandle handle,
 	    const std::string& name,
@@ -102,8 +116,12 @@ class IRenderer {
 	virtual MaterialHandle CreateMaterial(const Material* materialInfo) = 0;
 
 	virtual ComputeProgramHandle CreateComputeProgram(const char* source) = 0;
-	virtual void
-	DispatchComputeProgram(ComputeProgramHandle handle, int32_t x, int32_t y, int32_t z) = 0;
+	virtual void DispatchComputeProgram(
+	    ComputeProgramHandle handle,
+	    int32_t x,
+	    int32_t y,
+	    int32_t z
+	) = 0;
 
 	virtual void WaitIdle() = 0;
 	virtual void MemoryBarriersAll() = 0;

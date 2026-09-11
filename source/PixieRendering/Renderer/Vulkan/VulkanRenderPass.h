@@ -15,6 +15,10 @@ namespace PixieRenderer {
 struct RenderRequest {
 	MeshHandle meshHandle;
 	MaterialHandle materialHandle;
+
+	static constexpr uint32_t kPushConstantCapacity = 128;
+	std::array<uint8_t, kPushConstantCapacity> pushConstants{};
+	uint32_t pushConstantsSize = 0;
 };
 
 class VulkanDevice;

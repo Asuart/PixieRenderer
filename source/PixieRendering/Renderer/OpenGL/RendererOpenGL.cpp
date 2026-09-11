@@ -73,7 +73,12 @@ void RendererOpenGL::LoadMesh(MeshHandle handle, const Mesh* mesh) {
 	meshEntry.Load(mesh);
 }
 
-void RendererOpenGL::DrawMesh(MeshHandle meshHandle, MaterialHandle materialHandle) {
+void RendererOpenGL::DrawMesh(
+    MeshHandle meshHandle,
+    MaterialHandle materialHandle,
+    void* /*pushConstantsData*/,
+    uint32_t /*pushConstantdsDataSize*/
+) {
 	OpenGLGraphicsProgram& shaderEntry = m_resourceManager.GetMaterialEntry(materialHandle);
 	OpenGLMesh& meshEntry = m_resourceManager.GetMeshEntry(meshHandle);
 	shaderEntry.Bind();

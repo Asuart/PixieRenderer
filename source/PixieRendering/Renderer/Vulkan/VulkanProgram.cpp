@@ -264,6 +264,17 @@ void VulkanProgram::CreatePipelineLayout() {
 	pipelineLayoutInfo.setLayoutCount = 1;
 	pipelineLayoutInfo.pSetLayouts = &m_descriptorSetLayout;
 
+	if (m_bindingsInfo.pushConstantSize > 0) {
+		VkPushConstantRange pushRange{};
+		pushRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT |
+		                       VK_SHADER_STAGE_COMPUTE_BIT;
+		pushRange.offset = 0;
+		pushRange.size = m_bindingsInfo.pushConstantSize;
+
+		pipelineLayoutInfo.pushConstantRangeCount = 1;
+		pipelineLayoutInfo.pPushConstantRanges = &pushRange;
+	}
+
 	if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &m_pipelineLayout) !=
 	    VK_SUCCESS) {
 		throw std::runtime_error("Failed to create pipeline layout");

@@ -98,7 +98,7 @@ void VulkanRenderPass::Begin(
     VulkanFrameBuffer& frameBuffer
 ) {
 	frameBuffer.Transition(
-		cmdBuf,
+	    cmdBuf,
 	    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
 	    VK_ACCESS_MEMORY_READ_BIT,
 	    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
@@ -182,11 +182,24 @@ void VulkanRenderPass::Execute(
 		VulkanGraphicsProgram&
 		    graphicsProgram = *graphicsPrograms[req.materialHandle.GetId() & 0xffffffff].resource;
 
+		VkPipelineLayout layout = graphicsProgram.GetPipelineLayout();
+
 		vkCmdBindPipeline(
 		    m_currentCommandBuffer,
 		    VK_PIPELINE_BIND_POINT_GRAPHICS,
 		    graphicsProgram.GetOrCreatePipeline(m_renderPass)
 		);
+
+		if (req.pushConstantsSize > 0) {
+			vkCmdPushConstants(
+			    m_currentCommandBuffer,
+			    layout,
+			    VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+			    0,
+			    req.pushConstantsSize,
+			    req.pushConstants.data()
+			);
+		}
 
 		VkBuffer vertexBuffer = mesh.GetVertexBuffer().GetBuffer();
 		VkBuffer indexBuffer = mesh.GetIndexBuffer().GetBuffer();
@@ -197,7 +210,7 @@ void VulkanRenderPass::Execute(
 		vkCmdBindDescriptorSets(
 		    m_currentCommandBuffer,
 		    VK_PIPELINE_BIND_POINT_GRAPHICS,
-		    graphicsProgram.GetPipelineLayout(),
+		    layout,
 		    0,
 		    1,
 		    &graphicsProgram.GetDescriptorSets()[m_currentFrame],

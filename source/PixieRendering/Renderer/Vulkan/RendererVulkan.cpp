@@ -182,7 +182,7 @@ void RendererVulkan::BeginRenderPass(FrameBufferHandle handle) {
 		    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
 		    VK_IMAGE_ASPECT_COLOR_BIT,
 		    1,
-			1
+		    1
 		);
 
 		framebuffer = fb.GetFrameBuffer();
@@ -238,12 +238,12 @@ void RendererVulkan::EndRenderPass() {
 		VulkanFrameBuffer& fb = m_resourceManager.GetFrameBufferEntry(m_activeFrameBuffer);
 		fb.Transition(
 		    m_commandBuffers[m_currentFrame],
-		    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,     
-		    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,         
-		    VK_ACCESS_SHADER_READ_BIT,                    
+		    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+		    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+		    VK_ACCESS_SHADER_READ_BIT,
 		    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-		    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,        
-		    VK_IMAGE_ASPECT_COLOR_BIT                     
+		    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+		    VK_IMAGE_ASPECT_COLOR_BIT
 		);
 	} else {
 		m_swapchain->SetImageLayout(m_nextImageIndex, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
@@ -299,11 +299,28 @@ void RendererVulkan::LoadMesh(MeshHandle handle, const Mesh* mesh) {
 	meshEntry.Load(mesh);
 }
 
-void RendererVulkan::DrawMesh(MeshHandle meshHandle, MaterialHandle materialHandle) {
+void RendererVulkan::DrawMesh(
+    MeshHandle meshHandle,
+    MaterialHandle materialHandle,
+    void* pushConstantsData,
+    uint32_t pushConstantdsDataSize
+) {
+	RenderRequest req{};
+	req.meshHandle = meshHandle;
+	req.materialHandle = materialHandle;
+
+	if (pushConstantsData && pushConstantdsDataSize > 0) {
+		if (pushConstantdsDataSize > RenderRequest::kPushConstantCapacity) {
+			throw std::runtime_error("Push constant size exceeds capacity");
+		}
+		std::memcpy(req.pushConstants.data(), pushConstantsData, pushConstantdsDataSize);
+		req.pushConstantsSize = pushConstantdsDataSize;
+	}
+
 	if (m_currentRenderPass) {
-		m_currentRenderPass->AddRenderRequest({ meshHandle, materialHandle });
+		m_currentRenderPass->AddRenderRequest(req);
 	} else {
-		m_presentRenderPass->AddRenderRequest({ meshHandle, materialHandle });
+		m_presentRenderPass->AddRenderRequest(req);
 	}
 }
 
