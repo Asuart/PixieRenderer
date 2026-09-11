@@ -67,8 +67,8 @@ struct CameraComponent {
 	glm::vec3 position = glm::vec3(0.0f, 1.5f, -4.0f);
 	float yaw = -90.0f;
 	float pitch = 0.0f;
-	float moveSpeed = 3.0f;
-	float mouseSensitivity = 0.12f;
+	float moveSpeed = 30.0f;
+	float mouseSensitivity = 0.2f;
 	bool cursorCaptured = true;
 	bool lookEnabled = true;
 };
@@ -300,20 +300,6 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 		const float aspect = static_cast<float>(res.x) / static_cast<float>(res.y);
 		camComp.camera.projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 5000.0f);
 
-		const float t = static_cast<float>(glfwGetTime());
-		constexpr float kSpeed = 0.5f;
-		constexpr float kRadius = 6.0f;
-		const glm::vec3 center(0.0f, 1.0f, 0.0f);
-
-		const float angle = t * kSpeed;
-		const glm::vec3 cameraPosition(
-		    center.x + kRadius * std::sin(angle),
-		    center.y + 1.5f,
-		    center.z + kRadius * std::cos(angle)
-		);
-
-		camComp.camera.view = glm::lookAt(cameraPosition, center, glm::vec3(0.0f, 1.0f, 0.0f));
-
 		const glm::vec4 camPos = glm::vec4(glm::vec3(glm::inverse(camComp.camera.view)[3]), 1.0f);
 
 		for (size_t i = 0; i < m_materials.size(); i++) {
@@ -365,10 +351,14 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 		//	return;
 		//}
 
-		const glm::dvec2 md = UserInput::GetMouseDelta();
-		cam.yaw += static_cast<float>(md.x) * cam.mouseSensitivity;
-		cam.pitch -= static_cast<float>(md.y) * cam.mouseSensitivity;
-		cam.pitch = glm::clamp(cam.pitch, -89.0f, 89.0f);
+		const bool lookActive = UserInput::IsMouseButtonDown(GLFW_MOUSE_BUTTON_RIGHT);
+
+		if (lookActive) {
+			const glm::dvec2 md = UserInput::GetMouseDelta();
+			cam.yaw += static_cast<float>(md.x) * cam.mouseSensitivity;
+			cam.pitch -= static_cast<float>(md.y) * cam.mouseSensitivity;
+			cam.pitch = glm::clamp(cam.pitch, -89.0f, 89.0f);
+		}
 
 		const float yawRad = glm::radians(cam.yaw);
 		const float pitchRad = glm::radians(cam.pitch);
