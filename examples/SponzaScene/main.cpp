@@ -16,6 +16,7 @@
 #include <PixieUIApplication/PixieUIApplication.h>
 #include <PixieUIApplication/Windows/DemoWindow.h>
 #include <PixieUIApplication/Windows/TextureDisplayWindow.h>
+#include <PixieUIApplication/Windows/ApplicationStatsWindow.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -75,6 +76,7 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 		m_frameBuffer = m_renderer->CreateFrameBuffer({ 1280, 720 }, TextureFormat::RGBA32f);
 
 		m_ui->AddWindow(new PixieUI::DemoWindow(m_ui, m_renderer));
+		m_ui->AddWindow(new PixieUI::ApplicationStatsWindow(m_ui, m_renderer));
 		m_ui->AddWindow(new PixieUI::TextureDisplayWindow(m_ui, m_renderer, m_frameBuffer));
 
 		LoadScene(scenePath);

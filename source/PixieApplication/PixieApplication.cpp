@@ -27,42 +27,42 @@ PixieApplication::PixieApplication(
 void PixieApplication::Start() {
 	OnStart();
 	while (!m_window->GetShouldClose()) {
-		GlobalTimer::StartTimer("Main Loop");
+		GlobalTimer::StartTimer("Frame");
 
 		Time::Update();
 
+		GlobalTimer::StartTimer("Acquire");
+		bool hasFrame = m_renderer->BeginFrame();
+		GlobalTimer::StopTimer("Acquire");
 
-		if (!m_renderer->BeginFrame()) {
+		if (!hasFrame) {
 			UserInput::Reset();
 			m_window->PollEvents();
+			GlobalTimer::StopTimer("Frame");
 			continue;
 		}
 
+		GlobalTimer::StartTimer("Record");
 		BeforeDrawFrame();
-
 		m_renderer->BeginRenderPass();
 		OnDrawFrame();
 		m_renderer->EndRenderPass();
-
 		AfterDrawFrame();
+		GlobalTimer::StopTimer("Record");
 
+		GlobalTimer::StartTimer("Present");
 		m_renderer->EndFrame();
+		GlobalTimer::StopTimer("Present");
 
-		if (m_renderAPI == RenderAPI::OpenGL) {
+		if (m_renderAPI == RenderAPI::OpenGL)
 			m_window->SwapBuffers();
-		}
 
+		GlobalTimer::StartTimer("Events");
 		UserInput::Reset();
 		m_window->PollEvents();
+		GlobalTimer::StopTimer("Events");
 
-		// WindowEvent event;
-		// while (false) {
-		//	m_window->HandleEvent(event);
-		//	UserInput::HandleEvent(event);
-		//	HandleEvent(event);
-		// }
-
-		GlobalTimer::StopTimer("Main Loop");
+		GlobalTimer::StopTimer("Frame");
 	}
 	OnClose();
 };

@@ -1,5 +1,6 @@
 #pragma once
-#include <vector>
+#include <string>
+#include <unordered_map>
 
 #include "TimeMeasurement.h"
 
@@ -9,11 +10,14 @@ class GlobalTimer {
   public:
 	static void StartTimer(const std::string& name);
 	static void StopTimer(const std::string& name);
-	static TimeMeasurement& GetTimer(const std::string& name);
-	static const std::vector<TimeMeasurement>& GetTimers();
+
+	static TimeMeasurement* FindTimer(const std::string& name);
+	static const std::unordered_map<std::string, TimeMeasurement>& GetTimers();
 
   private:
-	inline static std::vector<TimeMeasurement> s_timers = {};
+	inline static std::unordered_map<std::string, TimeMeasurement> s_timers;
+
+	static TimeMeasurement& Timer(const std::string& name);
 };
 
-} // namespace PixeEngine
+} // namespace PixieApp
