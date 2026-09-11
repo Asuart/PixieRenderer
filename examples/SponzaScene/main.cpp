@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cstring>
 #include <filesystem>
 #include <iostream>
 #include <unordered_map>
@@ -151,6 +152,8 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 			m_materialHandles.push_back(m_renderer->CreateMaterial(&m_materials.back()));
 		}
 
+		std::unordered_map<const ufbx_mesh*, std::unordered_map<uint32_t, MeshHandle>> meshCache;
+
 		for (size_t ni = 0; ni < scene->nodes.count; ni++) {
 			ufbx_node* node = scene->nodes.data[ni];
 			if (!node->mesh)
@@ -164,8 +167,24 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 
 			const glm::mat4 worldMatrix = UfbxMatrixToGlm(node->geometry_to_world);
 
-			std::unordered_map<uint32_t, Mesh*> meshesByMaterial;
+			auto& cacheForMesh = meshCache[umesh];
 
+			std::vector<uint32_t> usedMaterials;
+			{
+				std::unordered_map<uint32_t, bool> seen;
+				seen.reserve(umesh->num_faces);
+				for (size_t fi = 0; fi < umesh->num_faces; fi++) {
+					uint32_t matId = 0;
+					if (umesh->face_material.data && fi < umesh->face_material.count) {
+						matId = umesh->face_material.data[fi];
+					}
+					if (seen.emplace(matId, true).second) {
+						usedMaterials.push_back(matId);
+					}
+				}
+			}
+
+			std::unordered_map<uint32_t, Mesh*> meshesByMaterial;
 			for (size_t fi = 0; fi < umesh->num_faces; fi++) {
 				const ufbx_face face = umesh->faces.data[fi];
 
@@ -173,6 +192,9 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 				if (umesh->face_material.data && fi < umesh->face_material.count) {
 					matId = umesh->face_material.data[fi];
 				}
+
+				if (cacheForMesh.count(matId))
+					continue;
 
 				Mesh*& mesh = meshesByMaterial[matId];
 				if (!mesh)
@@ -214,12 +236,21 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 			for (auto& [matId, mesh] : meshesByMaterial) {
 				if (!mesh || mesh->vertexes.empty()) {
 					delete mesh;
+					cacheForMesh[matId] = MeshHandle{}; // negative-cache the empty slot
 					continue;
 				}
 
 				MeshHandle meshHandle = m_renderer->CreateMesh(mesh);
 				m_meshes.push_back(meshHandle);
+				cacheForMesh[matId] = meshHandle;
 				delete mesh;
+			}
+
+			for (uint32_t matId : usedMaterials) {
+				auto it = cacheForMesh.find(matId);
+				if (it == cacheForMesh.end() || !it->second)
+					continue;
+				MeshHandle meshHandle = it->second;
 
 				MaterialHandle matHandle{};
 				PBRMaterial* material = nullptr;
@@ -336,20 +367,20 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 	}
 
 	void UpdateFlyCamera(CameraComponent& cam, float dt) {
-		//if (UserInput::IsKeyPressed(GLFW_KEY_TAB)) {
+		// if (UserInput::IsKeyPressed(GLFW_KEY_TAB)) {
 		//	cam.cursorCaptured = !cam.cursorCaptured;
-		//}
-		//if (UserInput::IsKeyPressed(GLFW_KEY_ESCAPE)) {
+		// }
+		// if (UserInput::IsKeyPressed(GLFW_KEY_ESCAPE)) {
 		//	cam.cursorCaptured = false;
-		//}
-		//if (!cam.cursorCaptured && UserInput::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_LEFT)) {
+		// }
+		// if (!cam.cursorCaptured && UserInput::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_LEFT)) {
 		//	cam.cursorCaptured = true;
-		//}
-		//UserInput::SetCursorCaptured(cam.cursorCaptured);
+		// }
+		// UserInput::SetCursorCaptured(cam.cursorCaptured);
 
-		//if (!cam.cursorCaptured) {
+		// if (!cam.cursorCaptured) {
 		//	return;
-		//}
+		// }
 
 		const bool lookActive = UserInput::IsMouseButtonDown(GLFW_MOUSE_BUTTON_RIGHT);
 
@@ -386,7 +417,7 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 			vel += right;
 		}
 		if (UserInput::IsKeyDown(GLFW_KEY_A)) {
-			vel -= right;	
+			vel -= right;
 		}
 		if (UserInput::IsKeyDown(GLFW_KEY_SPACE)) {
 			vel += worldUp;
@@ -409,7 +440,7 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 
 int32_t main(int argc, char** argv) {
 	SponzaSceneApp* app = new SponzaSceneApp(
-	    "C:/Repos/PixieRendering/assets/main_sponza/NewSponza_Main_Yup_003.fbx"
+	    "/home/asuart/Repos/PixieRendering/assets/main_sponza/NewSponza_Main_Yup_003.fbx"
 	);
 
 	app->Start();

@@ -10,7 +10,7 @@ class Timer {
 
   private:
 	std::string m_name;
-	std::chrono::high_resolution_clock::time_point m_start;
+    TimeMeasurement::Clock::time_point m_start;
 };
 
 } // namespace PixieApp

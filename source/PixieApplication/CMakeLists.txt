@@ -9,6 +9,7 @@ set_target_properties(PixieApplication PROPERTIES
 )
 
 target_include_directories(PixieApplication PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../")
+target_include_directories(PixieApplication PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../../")
 
 target_link_libraries(PixieApplication PUBLIC PixieRendering)
 
