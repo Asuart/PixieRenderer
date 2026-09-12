@@ -138,14 +138,20 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 			if (um->pbr.normal_map.texture) {
 				std::string texPath = UfbxStringToStd(um->pbr.normal_map.texture->filename);
 				mat.SetNormalTexture(LoadTextureCached(texPath));
+			} else {
+				mat.SetNormalTexture(CreateFallbackNormalTexture());
 			}
 			if (um->pbr.metalness.texture) {
 				std::string texPath = UfbxStringToStd(um->pbr.metalness.texture->filename);
 				mat.SetMetallicTexture(LoadTextureCached(texPath));
+			} else {
+				mat.SetMetallicTexture(CreateFallbackMetallicTexture());
 			}
 			if (um->pbr.roughness.texture) {
 				std::string texPath = UfbxStringToStd(um->pbr.roughness.texture->filename);
 				mat.SetRoughnessTexture(LoadTextureCached(texPath));
+			} else {
+				mat.SetRoughnessTexture(CreateFallbackRoughnessTexture());
 			}
 
 			m_materials.push_back(std::move(mat));
@@ -286,6 +292,60 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 		fallback.resolution = glm::ivec2(1, 1);
 		fallback.format = TextureFormat::RGBA8;
 		fallback.pixels = { 255, 255, 255, 255 };
+		fallbackHandle = m_renderer->CreateTexture(&fallback);
+
+		return fallbackHandle;
+	}
+
+	TextureHandle CreateFallbackNormalTexture() {
+		static TextureHandle fallbackHandle;
+		if (fallbackHandle) {
+			return fallbackHandle;
+		}
+
+		Image2D fallback;
+		fallback.resolution = glm::ivec2(1, 1);
+		fallback.format = TextureFormat::RGBA32f;
+		fallback.pixels.resize(sizeof(glm::vec4));
+		glm::vec4* target = reinterpret_cast<glm::vec4*>(fallback.pixels.data());
+		*target = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
+
+		fallbackHandle = m_renderer->CreateTexture(&fallback);
+
+		return fallbackHandle;
+	}
+
+	TextureHandle CreateFallbackMetallicTexture() {
+		static TextureHandle fallbackHandle;
+		if (fallbackHandle) {
+			return fallbackHandle;
+		}
+
+		Image2D fallback;
+		fallback.resolution = glm::ivec2(1, 1);
+		fallback.format = TextureFormat::Red32f;
+		fallback.pixels.resize(sizeof(float));
+		float* target = reinterpret_cast<float*>(fallback.pixels.data());
+		*target = 0.0f;
+
+		fallbackHandle = m_renderer->CreateTexture(&fallback);
+
+		return fallbackHandle;
+	}
+
+	TextureHandle CreateFallbackRoughnessTexture() {
+		static TextureHandle fallbackHandle;
+		if (fallbackHandle) {
+			return fallbackHandle;
+		}
+
+		Image2D fallback;
+		fallback.resolution = glm::ivec2(1, 1);
+		fallback.format = TextureFormat::Red32f;
+		fallback.pixels.resize(sizeof(float));
+		float* target = reinterpret_cast<float*>(fallback.pixels.data());
+		*target = 1.0f;
+
 		fallbackHandle = m_renderer->CreateTexture(&fallback);
 
 		return fallbackHandle;
@@ -440,7 +500,7 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 
 int32_t main(int argc, char** argv) {
 	SponzaSceneApp* app = new SponzaSceneApp(
-	    "/home/asuart/Repos/PixieRendering/assets/main_sponza/NewSponza_Main_Yup_003.fbx"
+	    "D:/repos/personal/PixieRendering/assets/main_sponza/NewSponza_Main_Yup_003.fbx"
 	);
 
 	app->Start();

@@ -54,7 +54,10 @@ layout(set = 0, binding = 3, std140) uniform MaterialUBO {
     vec2  _pad;
 } materialData;
 
-layout(set = 0, binding = 4) uniform sampler2D texSampler;
+layout(set = 0, binding = 4) uniform sampler2D albedoTexture;
+layout(set = 0, binding = 5) uniform sampler2D metallicTexture;
+layout(set = 0, binding = 6) uniform sampler2D roughnessTexture;
+layout(set = 0, binding = 7) uniform sampler2D normalTexture;
 
 const float PI = 3.14159265359;
 
@@ -95,15 +98,38 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0)
 
 void main()
 {
-    vec3 albedo = texture(texSampler, TexCoord).rgb;
+    vec3 albedo = texture(albedoTexture, TexCoord).rgb * materialData.albedo.rgb;
+    float metallic  = texture(metallicTexture, TexCoord).r * materialData.metallic;
+    float roughness = texture(roughnessTexture, TexCoord).r * materialData.roughness;
 
     vec3 N = normalize(Normal);
+
+    // --- Normal mapping ---
+    vec3 normalMap = texture(normalTexture, TexCoord).rgb;
+    normalMap = normalMap * 2.0 - 1.0;
+
+    // Если нормали в текстуре в DirectX-стиле (Y вниз), раскомментируй:
+    // normalMap.y = -normalMap.y;
+
+    vec3 dp1 = dFdx(WorldPos);
+    vec3 dp2 = dFdy(WorldPos);
+    vec2 duv1 = dFdx(TexCoord);
+    vec2 duv2 = dFdy(TexCoord);
+
+    vec3 dp2perp = cross(dp2, N);
+    vec3 dp1perp = cross(N, dp1);
+
+    vec3 T = dp2perp * duv1.x + dp1perp * duv2.x;
+    vec3 B = dp2perp * duv1.y + dp1perp * duv2.y;
+
+    float invmax = inversesqrt(max(dot(T, T), dot(B, B)));
+    mat3 TBN = mat3(T * invmax, B * invmax, N);
+
+    N = normalize(TBN * normalMap);
+
     vec3 V = normalize(cameraPosition.po.xyz - WorldPos);
     vec3 L = -LightDirection;
     vec3 H = normalize(V + L);
-
-    float metallic  = materialData.metallic;
-    float roughness = materialData.roughness;
 
     vec3 F0 = mix(vec3(0.04), albedo, metallic);
 
@@ -125,8 +151,8 @@ void main()
     vec3 ambient = vec3(0.03) * albedo;
 
     vec3 color = ambient + Lo;
-    color = color / (color + vec3(1.0));       
-    color = pow(color, vec3(1.0 / 2.2));       
+    color = color / (color + vec3(1.0));
+    color = pow(color, vec3(1.0 / 2.2));
 
     FragColor = vec4(color, 1.0);
 }
@@ -208,7 +234,25 @@ void PBRMaterial::Bind(IRenderer* renderer) {
 	renderer->LoadUniformBuffer(m_handle, "MaterialUBO", &props, sizeof(props));
 
 	if (m_albedoTexture) {
-		renderer->BindTexture(m_handle, "texSampler", m_albedoTexture, 0);
+		renderer->BindTexture(m_handle, "albedoTexture", m_albedoTexture, 0);
+	} else {
+		throw "Nothing to bind?";
+	}
+
+    if (m_metallicTexture) {
+		renderer->BindTexture(m_handle, "metallicTexture", m_metallicTexture, 0);
+	} else {
+		throw "Nothing to bind?";
+	}
+
+    if (m_roughnessTexture) {
+		renderer->BindTexture(m_handle, "roughnessTexture", m_roughnessTexture, 0);
+	} else {
+		throw "Nothing to bind?";
+	}
+
+    if (m_normalTexture) {
+		renderer->BindTexture(m_handle, "normalTexture", m_normalTexture, 0);
 	} else {
 		throw "Nothing to bind?";
 	}
