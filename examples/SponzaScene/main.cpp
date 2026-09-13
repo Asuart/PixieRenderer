@@ -24,12 +24,17 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
+#include <stb_image_resize2.h>
+
 #include <ufbx.h>
 
 #include <entt/entt.hpp>
 
 using namespace PixieRenderer;
 using namespace PixieApp;
+
+static constexpr int kMaxTextureSize = 2048;
 
 static std::string UfbxStringToStd(const ufbx_string& s) {
 	if (!s.data)
@@ -48,6 +53,24 @@ static glm::mat4 UfbxMatrixToGlm(const ufbx_matrix& m) {
 
 	return result;
 }
+
+struct MeshLoadStats {
+	size_t uniqueMeshes = 0;
+	size_t totalVertices = 0;
+	size_t totalIndices = 0;
+	size_t totalTriangles = 0;
+	size_t totalBytes = 0;
+};
+
+struct TextureLoadStats {
+	size_t uniqueTextures = 0;
+	size_t loadedFiles = 0;
+	size_t failedLoads = 0;
+	size_t fallbackTextures = 0;
+	size_t totalBytes = 0;
+	size_t maxWidth = 0;
+	size_t maxHeight = 0;
+};
 
 struct TransformComponent {
 	glm::mat4 transform = glm::mat4(1.0f);
@@ -83,6 +106,9 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 
 	entt::registry m_registry;
 	entt::entity m_cameraEntity = entt::null;
+
+	MeshLoadStats m_meshStats;
+	TextureLoadStats m_textureStats;
 
 	SponzaSceneApp(const std::string& scenePath)
 	    : PixieUIApplication("Sponza scene", { 1280, 720 }, RenderAPI::Vulkan, true) {
@@ -131,25 +157,25 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 
 			if (um->pbr.base_color.texture) {
 				std::string texPath = UfbxStringToStd(um->pbr.base_color.texture->filename);
-				mat.SetAlbedoTexture(LoadTextureCached(texPath));
+				mat.SetAlbedoTexture(LoadTextureCached(texPath, true));
 			} else {
 				mat.SetAlbedoTexture(CreateFallbackTexture());
 			}
 			if (um->pbr.normal_map.texture) {
 				std::string texPath = UfbxStringToStd(um->pbr.normal_map.texture->filename);
-				mat.SetNormalTexture(LoadTextureCached(texPath));
+				mat.SetNormalTexture(LoadTextureCached(texPath, false));
 			} else {
 				mat.SetNormalTexture(CreateFallbackNormalTexture());
 			}
 			if (um->pbr.metalness.texture) {
 				std::string texPath = UfbxStringToStd(um->pbr.metalness.texture->filename);
-				mat.SetMetallicTexture(LoadTextureCached(texPath));
+				mat.SetMetallicTexture(LoadTextureCached(texPath, false));
 			} else {
 				mat.SetMetallicTexture(CreateFallbackMetallicTexture());
 			}
 			if (um->pbr.roughness.texture) {
 				std::string texPath = UfbxStringToStd(um->pbr.roughness.texture->filename);
-				mat.SetRoughnessTexture(LoadTextureCached(texPath));
+				mat.SetRoughnessTexture(LoadTextureCached(texPath, false));
 			} else {
 				mat.SetRoughnessTexture(CreateFallbackRoughnessTexture());
 			}
@@ -162,6 +188,12 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 
 		for (size_t ni = 0; ni < scene->nodes.count; ni++) {
 			ufbx_node* node = scene->nodes.data[ni];
+
+			std::string nodeName = UfbxStringToStd(node->name);
+			if (nodeName.contains("decal")) {
+				continue;
+			}
+
 			if (!node->mesh)
 				continue;
 			if (!node->visible)
@@ -249,6 +281,14 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 				MeshHandle meshHandle = m_renderer->CreateMesh(mesh);
 				m_meshes.push_back(meshHandle);
 				cacheForMesh[matId] = meshHandle;
+
+				m_meshStats.uniqueMeshes++;
+				m_meshStats.totalVertices += mesh->vertexes.size();
+				m_meshStats.totalIndices += mesh->indexes.size();
+				m_meshStats.totalTriangles += mesh->indexes.size() / 3;
+				m_meshStats.totalBytes += mesh->vertexes.size() * sizeof(Vertex) +
+				                          mesh->indexes.size() * sizeof(int32_t);
+
 				delete mesh;
 			}
 
@@ -276,10 +316,7 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 
 		ufbx_free_scene(scene);
 
-		std::cout << "FBX loaded: " << m_meshes.size() << " mesh(es), " << m_materials.size()
-		          << " material(s)." << std::endl;
-		std::cout << "Mesh entities created: " << m_registry.view<MeshComponent>().size()
-		          << std::endl;
+		PrintLoadStats();
 	}
 
 	TextureHandle CreateFallbackTexture() {
@@ -293,6 +330,12 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 		fallback.format = TextureFormat::RGBA8;
 		fallback.pixels = { 255, 255, 255, 255 };
 		fallbackHandle = m_renderer->CreateTexture(&fallback);
+
+		m_textureStats.uniqueTextures++;
+		m_textureStats.fallbackTextures++;
+		m_textureStats.totalBytes += fallback.pixels.size();
+		m_textureStats.maxWidth = std::max<size_t>(m_textureStats.maxWidth, 1);
+		m_textureStats.maxHeight = std::max<size_t>(m_textureStats.maxHeight, 1);
 
 		return fallbackHandle;
 	}
@@ -312,6 +355,12 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 
 		fallbackHandle = m_renderer->CreateTexture(&fallback);
 
+		m_textureStats.uniqueTextures++;
+		m_textureStats.fallbackTextures++;
+		m_textureStats.totalBytes += fallback.pixels.size();
+		m_textureStats.maxWidth = std::max<size_t>(m_textureStats.maxWidth, 1);
+		m_textureStats.maxHeight = std::max<size_t>(m_textureStats.maxHeight, 1);
+
 		return fallbackHandle;
 	}
 
@@ -329,6 +378,12 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 		*target = 0.0f;
 
 		fallbackHandle = m_renderer->CreateTexture(&fallback);
+
+		m_textureStats.uniqueTextures++;
+		m_textureStats.fallbackTextures++;
+		m_textureStats.totalBytes += fallback.pixels.size();
+		m_textureStats.maxWidth = std::max<size_t>(m_textureStats.maxWidth, 1);
+		m_textureStats.maxHeight = std::max<size_t>(m_textureStats.maxHeight, 1);
 
 		return fallbackHandle;
 	}
@@ -348,25 +403,79 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 
 		fallbackHandle = m_renderer->CreateTexture(&fallback);
 
+		m_textureStats.uniqueTextures++;
+		m_textureStats.fallbackTextures++;
+		m_textureStats.totalBytes += fallback.pixels.size();
+		m_textureStats.maxWidth = std::max<size_t>(m_textureStats.maxWidth, 1);
+		m_textureStats.maxHeight = std::max<size_t>(m_textureStats.maxHeight, 1);
+
 		return fallbackHandle;
 	}
 
-	TextureHandle LoadTextureCached(const std::string& path) {
-		if (auto it = m_textureCache.find(path); it != m_textureCache.end()) {
+	TextureHandle LoadTextureCached(const std::string& path, bool srgb) {
+		const std::string key = path + (srgb ? "|srgb" : "|linear");
+		if (auto it = m_textureCache.find(key); it != m_textureCache.end()) {
 			return it->second;
 		}
-		TextureHandle h = LoadTexture(path);
-		m_textureCache.emplace(path, h);
+		TextureHandle h = LoadTexture(path, srgb);
+		m_textureCache.emplace(key, h);
 		return h;
 	}
 
-	TextureHandle LoadTexture(const std::string& filePath) {
+	TextureHandle LoadTexture(const std::string& filePath, bool srgb) {
 		int width = 0, height = 0, channels = 0;
 		stbi_uc* data = stbi_load(filePath.c_str(), &width, &height, &channels, 4);
-
 		if (!data) {
 			std::cout << "Failed to load texture: " << filePath << " — using 1x1 white fallback.\n";
-			return CreateFallbackTexture();
+			m_textureStats.failedLoads++;
+			return srgb ? CreateFallbackTexture() : CreateFallbackNormalTexture();
+		}
+
+		const int srcWidth = width;
+		const int srcHeight = height;
+
+		std::vector<unsigned char> resized;
+		if (width > kMaxTextureSize || height > kMaxTextureSize) {
+			const float scale = std::
+			    min(static_cast<float>(kMaxTextureSize) / static_cast<float>(width),
+			        static_cast<float>(kMaxTextureSize) / static_cast<float>(height));
+
+			const int newW = std::max(1, static_cast<int>(std::lround(width * scale)));
+			const int newH = std::max(1, static_cast<int>(std::lround(height * scale)));
+
+			resized.resize(static_cast<size_t>(newW) * newH * 4);
+
+			unsigned char* out = srgb ? stbir_resize_uint8_srgb(
+			                                data,
+			                                width,
+			                                height,
+			                                0,
+			                                resized.data(),
+			                                newW,
+			                                newH,
+			                                0,
+			                                STBIR_RGBA
+			                            )
+			                          : stbir_resize_uint8_linear(
+			                                data,
+			                                width,
+			                                height,
+			                                0,
+			                                resized.data(),
+			                                newW,
+			                                newH,
+			                                0,
+			                                STBIR_RGBA
+			                            );
+
+			if (!out) {
+				std::cout << "Resize failed for " << filePath << " — keeping original.\n";
+			} else {
+				stbi_image_free(data);
+				data = resized.data();
+				width = newW;
+				height = newH;
+			}
 		}
 
 		Image2D image;
@@ -375,7 +484,16 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 		image.pixels.resize(static_cast<size_t>(width) * height * 4);
 		std::memcpy(image.pixels.data(), data, image.pixels.size());
 
-		stbi_image_free(data);
+		if (resized.empty()) {
+			stbi_image_free(data);
+		}
+
+		m_textureStats.uniqueTextures++;
+		m_textureStats.loadedFiles++;
+		m_textureStats.totalBytes += image.pixels.size();
+		m_textureStats.maxWidth = std::max<size_t>(m_textureStats.maxWidth, width);
+		m_textureStats.maxHeight = std::max<size_t>(m_textureStats.maxHeight, height);
+
 		return m_renderer->CreateTexture(&image, 13);
 	}
 
@@ -492,6 +610,36 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 		}
 
 		cam.camera.view = glm::lookAt(cam.position, cam.position + forward, worldUp);
+	}
+
+	void PrintLoadStats() const {
+		const size_t meshEntities = m_registry.view<MeshComponent>().size();
+
+		const double meshMB = static_cast<double>(m_meshStats.totalBytes) / (1024.0 * 1024.0);
+		const double texMB = static_cast<double>(m_textureStats.totalBytes) / (1024.0 * 1024.0);
+
+		std::cout << "\n=== Load statistics ===\n";
+
+		std::cout << "Meshes (unique MeshHandle): " << m_meshStats.uniqueMeshes << '\n';
+		std::cout << "Mesh entities: " << meshEntities << '\n';
+		std::cout << "Materials: " << m_materials.size() << '\n';
+		std::cout << "Vertices: " << m_meshStats.totalVertices << '\n';
+		std::cout << "Indices: " << m_meshStats.totalIndices << '\n';
+		std::cout << "Triangles: " << m_meshStats.totalTriangles << '\n';
+		std::cout << "Mesh data (approx): " << m_meshStats.totalBytes << " bytes (" << meshMB
+		          << " MB)\n";
+
+		std::cout << "Textures (unique): " << m_textureStats.uniqueTextures << '\n';
+		std::cout << "  loaded files: " << m_textureStats.loadedFiles << '\n';
+		std::cout << "  fallback: " << m_textureStats.fallbackTextures << '\n';
+		std::cout << "  failed loads: " << m_textureStats.failedLoads << '\n';
+		std::cout << "Texture cache entries: " << m_textureCache.size() << '\n';
+		std::cout << "Texture data (approx): " << m_textureStats.totalBytes << " bytes (" << texMB
+		          << " MB)\n";
+		std::cout << "Max texture size: " << m_textureStats.maxWidth << 'x'
+		          << m_textureStats.maxHeight << '\n';
+
+		std::cout << "======================\n";
 	}
 
   private:
