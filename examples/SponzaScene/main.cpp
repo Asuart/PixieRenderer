@@ -376,7 +376,7 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 		std::memcpy(image.pixels.data(), data, image.pixels.size());
 
 		stbi_image_free(data);
-		return m_renderer->CreateTexture(&image);
+		return m_renderer->CreateTexture(&image, 13);
 	}
 
 	void BeforeDrawFrame() override {

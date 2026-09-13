@@ -121,7 +121,7 @@ glm::uvec2 RendererOpenGL::GetFrameBufferResolution(FrameBufferHandle handle) {
 	return frameBufferEntry.GetResolution();
 }
 
-TextureHandle RendererOpenGL::CreateTexture(const Image2D* image) {
+TextureHandle RendererOpenGL::CreateTexture(const Image2D* image, uint32_t /*mipLevels*/) {
 	return m_resourceManager.CreateTexture(image);
 }
 

@@ -348,8 +348,8 @@ glm::uvec2 RendererVulkan::GetFrameBufferResolution(FrameBufferHandle handle) {
 	return { extent.width, extent.height };
 }
 
-TextureHandle RendererVulkan::CreateTexture(const Image2D* image) {
-	return m_resourceManager.CreateTexture(image);
+TextureHandle RendererVulkan::CreateTexture(const Image2D* image, uint32_t mipLevels) {
+	return m_resourceManager.CreateTexture(image, mipLevels);
 }
 
 void RendererVulkan::LoadTexture(TextureHandle handle, const Image2D* image) {

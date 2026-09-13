@@ -37,7 +37,7 @@ void VulkanTexture::Load(const Image2D* image, uint32_t mipmapLevels) {
 
 	uint32_t maxMipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(m_width, m_height)))
 	                        ) +
-	                        1;
+	                        1;	
 	m_mipLevels = std::clamp(mipmapLevels, 1u, maxMipLevels);
 
 	VkDeviceSize imageSize = m_width * m_height * FormatToByteSize(image->format);
