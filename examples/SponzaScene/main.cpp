@@ -10,6 +10,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <PixieRendering/Materials/PBRMaterial.h>
+#include <PixieRendering/Materials/MeshIslandsMaterial.h>
 #include <PixieRendering/PixieRendering.h>
 #include <PixieRendering/Resources/Camera.h>
 
@@ -110,6 +111,10 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 	MeshLoadStats m_meshStats;
 	TextureLoadStats m_textureStats;
 
+	MeshIslandsMaterial m_meshIslandsMaterial;
+	MaterialHandle m_meshIslandsMaterialHandle;
+	bool m_showmeshIslands = true;
+
 	SponzaSceneApp(const std::string& scenePath)
 	    : PixieUIApplication("Sponza scene", { 1280, 720 }, RenderAPI::Vulkan, true) {
 		m_frameBuffer = m_renderer->CreateFrameBuffer({ 1280, 720 }, TextureFormat::RGBA32f);
@@ -117,6 +122,8 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 		m_ui->AddWindow(new PixieUI::DemoWindow(m_ui, m_renderer));
 		m_ui->AddWindow(new PixieUI::ApplicationStatsWindow(m_ui, m_renderer));
 		m_ui->AddWindow(new PixieUI::TextureDisplayWindow(m_ui, m_renderer, m_frameBuffer));
+
+		m_meshIslandsMaterialHandle = m_renderer->CreateMaterial(&m_meshIslandsMaterial);
 
 		LoadScene(scenePath);
 	}
@@ -529,16 +536,42 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 			);
 		}
 
+		m_meshIslandsMaterial.Bind(m_renderer);
+		m_renderer->LoadUniformBuffer(
+		    m_meshIslandsMaterialHandle,
+		    "CameraUBO",
+		    &camComp.camera,
+		    sizeof(Camera)
+		);
+
 		m_renderer->BeginRenderPass(m_frameBuffer);
 
 		auto view = m_registry.view<TransformComponent, MeshComponent, MaterialComponent>();
-		for (auto [entity, transform, meshComp, matComp] : view.each()) {
-			m_renderer->DrawMesh(
-			    meshComp.mesh,
-			    matComp.materialHandle,
-			    &transform.transform,
-			    sizeof(glm::mat4)
-			);
+		if (m_showmeshIslands) {
+			int drawIndex = 0;
+			for (auto [entity, transform, meshComp, matComp] : view.each()) {
+				struct MeshIslandPushConstants {
+					glm::mat4 model;
+					glm::vec4 color;
+				} pushConstants;
+				pushConstants.model = transform.transform;
+				pushConstants.color = MeshIslandsMaterial::MakeUniqueDebugColor(drawIndex++);
+				m_renderer->DrawMesh(
+				    meshComp.mesh,
+				    m_meshIslandsMaterialHandle,
+				    &pushConstants,
+				    sizeof(MeshIslandPushConstants)
+				);
+			}
+		} else {
+			for (auto [entity, transform, meshComp, matComp] : view.each()) {
+				m_renderer->DrawMesh(
+				    meshComp.mesh,
+				    matComp.materialHandle,
+				    &transform.transform,
+				    sizeof(glm::mat4)
+				);
+			}
 		}
 
 		m_renderer->EndRenderPass();
