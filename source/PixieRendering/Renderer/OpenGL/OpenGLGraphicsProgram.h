@@ -4,13 +4,13 @@
 
 #include <glad/glad.h>
 
-#include "PixieRendering/Resources/Material.h"
+#include "PixieRendering/Material/IMaterial.h"
 
 namespace PixieRenderer {
 
 struct OpenGLGraphicsProgram {
   public:
-	explicit OpenGLGraphicsProgram(const Material* materialInfo);
+	explicit OpenGLGraphicsProgram(const IMaterial* materialInfo);
 	~OpenGLGraphicsProgram();
 
 	OpenGLGraphicsProgram(const OpenGLGraphicsProgram&) = delete;

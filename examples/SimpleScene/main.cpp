@@ -170,7 +170,7 @@ class SimpleSceneApp : public PixieApp::PixieUIApplication {
 
 		m_meshHandle = m_renderer->CreateMesh(mesh);
 
-		PixieRenderer::Material materialInfo{ "CubeShader", vertexShaderSource, fragmentShaderSource };
+		PixieRenderer::IMaterial materialInfo{ "CubeShader", vertexShaderSource, fragmentShaderSource };
 		m_materialHandle = m_renderer->CreateMaterial(&materialInfo);
 
 		delete mesh;

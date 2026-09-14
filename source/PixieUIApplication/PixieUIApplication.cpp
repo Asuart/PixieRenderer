@@ -14,7 +14,7 @@ PixieUIApplication::PixieUIApplication(
     bool docking
 )
     : PixieApplication(name, resolution, renderAPI) {
-	switch (m_renderAPI) {
+	switch (m_renderer->GetRenderAPI()) {
 	case RenderAPI::OpenGL: {
 		WindowOpenGL* mainWindowOpenGL = reinterpret_cast<WindowOpenGL*>(m_window);
 		m_ui = new PixieUI::UIOpenGL(mainWindowOpenGL, docking);

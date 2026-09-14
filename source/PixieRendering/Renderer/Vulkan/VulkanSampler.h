@@ -1,7 +1,7 @@
 #pragma once
 #include <vulkan/vulkan.hpp>
 
-#include "PixieRendering/TextureEnums.h"
+#include "PixieRendering/Image/ImageTypes.h"
 
 namespace PixieRenderer {
 
@@ -36,7 +36,7 @@ class VulkanSampler {
 
 static inline VkSamplerAddressMode ToVkSamplerAddressMode(TextureWrap wrap) {
 	switch (wrap) {
-	case TextureWrap::Reapeat:
+	case TextureWrap::Repeat:
 		return VK_SAMPLER_ADDRESS_MODE_REPEAT;
 	case TextureWrap::MirroredRepeat:
 		return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;

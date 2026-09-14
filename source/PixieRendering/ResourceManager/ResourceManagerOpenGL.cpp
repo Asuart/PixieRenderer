@@ -1,4 +1,5 @@
 #include "ResourceManagerOpenGL.h"
+
 #include <cassert>
 
 namespace PixieRenderer {
@@ -18,7 +19,7 @@ void ResourceManagerOpenGL::AddRef(uint64_t id) {
 		if (index < m_frameBuffers.size() && m_frameBuffers[index].resource)
 			++m_frameBuffers[index].refCount;
 		break;
-	case ResourceType::Material:
+	case ResourceType::IMaterial:
 		if (index < m_materials.size() && m_materials[index].resource)
 			++m_materials[index].refCount;
 		break;
@@ -60,7 +61,7 @@ void ResourceManagerOpenGL::Release(uint64_t id) {
 				m_frameBuffers[index].resource.reset();
 		}
 		break;
-	case ResourceType::Material:
+	case ResourceType::IMaterial:
 		if (index < m_materials.size() && m_materials[index].resource) {
 			if (--m_materials[index].refCount == 0)
 				m_materials[index].resource.reset();
@@ -115,7 +116,7 @@ OpenGLFrameBuffer& ResourceManagerOpenGL::GetFrameBufferEntry(FrameBufferHandle 
 OpenGLGraphicsProgram& ResourceManagerOpenGL::GetMaterialEntry(MaterialHandle handle) {
 	auto [type, index] = DecodeId(handle.GetId());
 	assert(
-	    type == ResourceType::Material && index < m_materials.size() && m_materials[index].resource
+	    type == ResourceType::IMaterial && index < m_materials.size() && m_materials[index].resource
 	);
 	return *m_materials[index].resource;
 }

@@ -53,20 +53,6 @@ void OpenGLTexture::Load(const Image2D* image) {
 		    image->pixels.data()
 		);
 		break;
-	case TextureFormat::RGB8:
-		m_internalFormat = GL_RGB;
-		glTexImage2D(
-		    GL_TEXTURE_2D,
-		    0,
-		    m_internalFormat,
-		    image->resolution.x,
-		    image->resolution.y,
-		    0,
-		    GL_RGB,
-		    GL_UNSIGNED_BYTE,
-		    image->pixels.data()
-		);
-		break;
 	case TextureFormat::RGBA8:
 		m_internalFormat = GL_RGBA;
 		glTexImage2D(
@@ -91,20 +77,6 @@ void OpenGLTexture::Load(const Image2D* image) {
 		    image->resolution.y,
 		    0,
 		    GL_RED,
-		    GL_FLOAT,
-		    image->pixels.data()
-		);
-		break;
-	case TextureFormat::RGB32f:
-		m_internalFormat = GL_RGB32F;
-		glTexImage2D(
-		    GL_TEXTURE_2D,
-		    0,
-		    m_internalFormat,
-		    image->resolution.x,
-		    image->resolution.y,
-		    0,
-		    GL_RGB,
 		    GL_FLOAT,
 		    image->pixels.data()
 		);

@@ -5,7 +5,7 @@
 namespace PixieRenderer {
 
 struct Vertex {
-	static constexpr int32_t cBonesPerVertex = 4;
+	static constexpr uint32_t cBonesPerVertex = 4;
 
 	glm::vec3 position = glm::vec3(0.0f);
 	glm::vec3 normal = glm::vec3(0.0f, 0.0f, 1.0f);
@@ -18,23 +18,21 @@ struct Vertex {
 	    glm::vec3 _position,
 	    glm::vec3 _normal = glm::vec3(0.0f, 0.0f, 1.0f),
 	    glm::vec2 _uv = glm::vec2(0.0f)
-	)
-	    : position(_position), normal(_normal), uv(_uv) {
-	}
+	);
 };
 
 struct Mesh {
 	std::vector<Vertex> vertexes;
-	std::vector<int32_t> indexes;
+	std::vector<uint32_t> indexes;
 
 	Mesh() = default;
 
 	inline uint64_t GetVertexBufferSize() const {
-		return vertexes.size() * sizeof(vertexes[0]);
+		return vertexes.size() * sizeof(Vertex);
 	}
 
 	inline uint64_t GetIndexBufferSize() const {
-		return indexes.size() * sizeof(indexes[0]);
+		return indexes.size() * sizeof(uint32_t);
 	}
 };
 

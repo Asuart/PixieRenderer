@@ -1,7 +1,5 @@
 #include "UIImageOpenGL.h"
 
-#include <glad/glad.h>
-
 #include <PixieRendering/Renderer/OpenGL/RendererOpenGL.h>
 
 using namespace PixieRenderer;

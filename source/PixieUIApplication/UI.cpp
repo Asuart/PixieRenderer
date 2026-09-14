@@ -7,13 +7,13 @@
 #include <vulkan/vulkan.hpp>
 
 #include <PixieApplication/Log/Log.h>
-#include <PixieRendering/Window/Window.h>
+#include <PixieRendering/Window/IWindow.h>
 
 #include "UIWindow.h"
 
 namespace PixieUI {
 
-UI::UI(PixieRenderer::Window* mainWindow, bool docking)
+UI::UI(PixieRenderer::IWindow* mainWindow, bool docking)
     : m_window(mainWindow), m_isDocking(docking) {
 	IMGUI_CHECKVERSION();
 }

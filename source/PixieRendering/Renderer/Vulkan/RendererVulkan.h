@@ -10,12 +10,13 @@
 #include "VulkanInstance.h"
 #include "VulkanSwapchain.h"
 #include "PixieRendering/ResourceManager/ResourceManagerVulkan.h"
+#include "PixieRendering/Material/IMaterial.h"
 
 namespace PixieRenderer {
 
 class RendererVulkan : public IRenderer {
   public:
-	RendererVulkan(Window* window);
+	RendererVulkan(IWindow* window);
 
 	bool BeginFrame() override;
 	void EndFrame() override;
@@ -90,7 +91,7 @@ class RendererVulkan : public IRenderer {
 	    size_t size
 	) override;
 
-	MaterialHandle CreateMaterial(const Material* material) override;
+	MaterialHandle CreateMaterial(const IMaterial* material) override;
 
 	ComputeProgramHandle CreateComputeProgram(const char* source) override;
 	void DispatchComputeProgram(ComputeProgramHandle handle, int32_t x, int32_t y, int32_t z)

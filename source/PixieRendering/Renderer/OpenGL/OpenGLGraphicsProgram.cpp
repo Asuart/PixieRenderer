@@ -4,10 +4,10 @@
 
 namespace PixieRenderer {
 
-OpenGLGraphicsProgram::OpenGLGraphicsProgram(const Material* materialInfo) {
+OpenGLGraphicsProgram::OpenGLGraphicsProgram(const IMaterial* materialInfo) {
 	m_id = CompileShaderOpenGL(
-	    materialInfo->vertexShaderSource,
-	    materialInfo->fragmentShaderSource,
+	    materialInfo->vertexShaderSource.c_str(),
+	    materialInfo->fragmentShaderSource.c_str(),
 	    nullptr
 	);
 }

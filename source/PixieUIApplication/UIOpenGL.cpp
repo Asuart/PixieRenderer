@@ -5,7 +5,7 @@
 #include <imgui.h>
 
 #include <PixieApplication/Log/Log.h>
-#include <PixieRendering/Window/Window.h>
+#include <PixieRendering/Window/IWindow.h>
 #include <PixieRendering/Window/WindowOpenGL.h>
 
 #include "UIImageOpenGL.h"

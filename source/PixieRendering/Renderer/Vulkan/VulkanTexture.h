@@ -4,8 +4,7 @@
 
 #include <vulkan/vulkan.h>
 
-#include "../../Resources/Image2D.h"
-#include "PixieRendering/TextureEnums.h"
+#include "PixieRendering/Image/Image2D.h"
 #include "VulkanConfig.h"
 #include "VulkanSampler.h"
 
@@ -70,14 +69,10 @@ static inline VkFormat ToVkFormat(TextureFormat format) {
 	switch (format) {
 	case TextureFormat::Red8:
 		return VK_FORMAT_R8_SRGB;
-	case TextureFormat::RGB8:
-		return VK_FORMAT_R8G8B8A8_SRGB;
 	case TextureFormat::RGBA8:
 		return VK_FORMAT_R8G8B8A8_SRGB;
 	case TextureFormat::Red32f:
 		return VK_FORMAT_R32_SFLOAT;
-	case TextureFormat::RGB32f:
-		return VK_FORMAT_R32G32B32_SFLOAT;
 	case TextureFormat::RGBA32f:
 		return VK_FORMAT_R32G32B32A32_SFLOAT;
 	default:

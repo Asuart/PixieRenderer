@@ -1,8 +1,8 @@
 #pragma once
 #include <PixieRendering/PixieRendering.h>
-#include <PixieRendering/RenderAPI.h>
+#include <PixieRendering/Renderer/RenderAPI.h>
 #include <PixieRendering/Renderer/IRenderer.h>
-#include <PixieRendering/Window/Window.h>
+#include <PixieRendering/Window/IWindow.h>
 
 namespace PixieApp {
 
@@ -19,9 +19,8 @@ class PixieApplication {
 	virtual void Start();
 
   protected:
-	PixieRenderer::RenderAPI m_renderAPI;
 	PixieRenderer::IRenderer* m_renderer;
-	PixieRenderer::Window* m_window;
+	PixieRenderer::IWindow* m_window;
 
 	virtual void OnStart() {
 	}

@@ -9,10 +9,10 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-#include <PixieRendering/Materials/PBRMaterial.h>
-#include <PixieRendering/Materials/MeshIslandsMaterial.h>
+#include <PixieRendering/Camera/Camera.h>
+#include <PixieRendering/Material/MeshIslandsMaterial.h>
+#include <PixieRendering/Material/PBRMaterial.h>
 #include <PixieRendering/PixieRendering.h>
-#include <PixieRendering/Resources/Camera.h>
 
 #include <PixieApplication/Time/ApplicationTime.h>
 #include <PixieApplication/UserInput/UserInput.h>
@@ -155,7 +155,6 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 			ufbx_material* um = scene->materials.data[i];
 
 			PBRMaterial mat;
-			mat.name = UfbxStringToStd(um->name);
 
 			const ufbx_vec4 base = um->pbr.base_color.value_vec4;
 			mat.SetAlbedo(glm::vec3(base.x, base.y, base.z));
@@ -311,7 +310,7 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 					size_t safeId = std::min<size_t>(matId, m_materialHandles.size() - 1);
 					matHandle = m_materialHandles[safeId];
 					material = &m_materials[safeId];
-					material->m_handle = matHandle;
+					material->SetHandle(matHandle);
 				}
 
 				entt::entity e = m_registry.create();
@@ -438,9 +437,6 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 			return srgb ? CreateFallbackTexture() : CreateFallbackNormalTexture();
 		}
 
-		const int srcWidth = width;
-		const int srcHeight = height;
-
 		std::vector<unsigned char> resized;
 		if (width > kMaxTextureSize || height > kMaxTextureSize) {
 			const float scale = std::
@@ -522,14 +518,14 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 			m_materials[i].Bind(m_renderer);
 
 			m_renderer->LoadUniformBuffer(
-			    m_materials[i].m_handle,
+			    m_materials[i].GetHandle(),
 			    "CameraUBO",
 			    &camComp.camera,
 			    sizeof(Camera)
 			);
 
 			m_renderer->LoadUniformBuffer(
-			    m_materials[i].m_handle,
+			    m_materials[i].GetHandle(),
 			    "CameraPosition",
 			    &camPos,
 			    sizeof(glm::vec4)
@@ -679,9 +675,9 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 	FrameBufferHandle m_frameBuffer;
 };
 
-int32_t main(int argc, char** argv) {
+int32_t main(void) {
 	SponzaSceneApp* app = new SponzaSceneApp(
-	    "D:/repos/personal/PixieRendering/assets/main_sponza/NewSponza_Main_Yup_003.fbx"
+	    "C:/Repos/PixieRendering/assets/main_sponza/NewSponza_Main_Yup_003.fbx"
 	);
 
 	app->Start();

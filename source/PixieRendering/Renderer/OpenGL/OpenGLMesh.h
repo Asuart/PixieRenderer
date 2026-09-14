@@ -1,7 +1,7 @@
 #pragma once
 #include "glad/glad.h"
 
-#include "PixieRendering/Resources/Mesh.h"
+#include "PixieRendering/Mesh/Mesh.h"
 
 namespace PixieRenderer {
 

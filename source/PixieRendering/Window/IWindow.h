@@ -1,8 +1,11 @@
 #pragma once
+#include <string>
+#include <string_view>
+
 #include <glm/glm.hpp>
 
+#include "PixieRendering/Renderer/RenderAPI.h"
 #include "PixieRendering/Window/WindowEvent.h"
-#include "PixieRendering/RenderAPI.h"
 
 struct GLFWwindow;
 
@@ -10,13 +13,11 @@ namespace PixieRenderer {
 
 class IRenderer;
 
-class Window {
+class IWindow {
   public:
-	Window(const std::string& name, glm::ivec2 resolution, RenderAPI renderAPI);
-	virtual ~Window();
+	virtual ~IWindow();
 
-	void SetRenderer(IRenderer* renderer);
-
+	IRenderer* GetRenderer() const;
 	glm::ivec2 GetResolution() const;
 	bool GetShouldClose() const;
 	RenderAPI GetRenderAPI() const;
@@ -27,14 +28,15 @@ class Window {
 	virtual void PollEvents();
 	virtual void Close();
 
-	virtual void OnResize(glm::ivec2 newSize);
+	virtual void OnResize(glm::uvec2 newSize);
 
   protected:
+	IWindow(std::string_view name, glm::ivec2 resolution);
+
 	std::string m_name = "Unnamed Window";
 	GLFWwindow* m_window = nullptr;
 	IRenderer* m_renderer = nullptr;
-	glm::ivec2 m_resolution = {0, 0};
-	RenderAPI m_renderAPI = RenderAPI::Undefined;
+	glm::uvec2 m_resolution = { 0, 0 };
 };
 
 } // namespace PixieRenderer

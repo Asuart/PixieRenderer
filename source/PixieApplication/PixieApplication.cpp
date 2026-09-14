@@ -1,5 +1,7 @@
 #include "PixieApplication.h"
 
+#include "PixieRendering/PixieRendering.h"
+
 #include "Time/ApplicationTime.h"
 #include "Time/GlobalTimer.h"
 #include "UserInput/UserInput.h"
@@ -12,16 +14,9 @@ PixieApplication::PixieApplication(
     const std::string& name,
     glm::ivec2 resolution,
     RenderAPI renderAPI
-)
-    : m_renderAPI(renderAPI) {
+) {
 	m_window = CreateWindow(name, resolution, renderAPI);
-	if (!m_window) {
-		throw "Failed to craete main window";
-	}
-	m_renderer = CreateRenderer(m_window);
-	if (!m_renderer) {
-		throw "Failed to create renderer";
-	}
+	m_renderer = m_window->GetRenderer();
 	UserInput::Initialize(m_window->GetGLFWWindow());
 }
 
@@ -55,7 +50,7 @@ void PixieApplication::Start() {
 		m_renderer->EndFrame();
 		GlobalTimer::StopTimer("Present");
 
-		if (m_renderAPI == RenderAPI::OpenGL)
+		if (m_renderer->GetRenderAPI() == RenderAPI::OpenGL)
 			m_window->SwapBuffers();
 
 		GlobalTimer::StartTimer("Events");

@@ -49,7 +49,7 @@ class ResourceManagerOpenGL : public IResourceManager {
 		m_materials.emplace_back();
 		m_materials.back().resource = std::make_unique<OpenGLGraphicsProgram>(std::forward<Args>(args)...);
 		m_materials.back().refCount = 0;
-		uint64_t id = MakeId(ResourceType::Material, index);
+		uint64_t id = MakeId(ResourceType::IMaterial, index);
 		return MaterialHandle(this, id);
 	}
 

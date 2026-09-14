@@ -1,7 +1,7 @@
 #pragma once
 #include <imgui.h>
 
-#include <PixieRendering/Resources/ResourceHandles.h>
+#include <PixieRendering/ResourceManager/ResourceHandles.h>
 
 namespace PixieUI {
 

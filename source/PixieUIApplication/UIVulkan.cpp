@@ -6,7 +6,7 @@
 #include <vulkan/vulkan.hpp>
 
 #include <PixieRendering/Renderer/Vulkan/RendererVulkan.h>
-#include <PixieRendering/Window/Window.h>
+#include <PixieRendering/Window/IWindow.h>
 #include <PixieRendering/Window/WindowVulkan.h>
 
 #include <PixieApplication/Log/Log.h>

@@ -1,14 +1,12 @@
 #pragma once
-#include "Window.h"
+#include "IWindow.h"
 
 namespace PixieRenderer {
 
-class WindowOpenGL : public Window {
+class WindowOpenGL : public IWindow {
   public:
-	WindowOpenGL(const std::string& name, glm::ivec2 resolution);
+	WindowOpenGL(std::string_view name, glm::ivec2 resolution);
 	~WindowOpenGL();
-
-
 
   protected:
 	void HandleEvent(const WindowEvent& event) override;

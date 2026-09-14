@@ -1,9 +1,9 @@
 #pragma once
-
-#include "../../Resources/Material.h"
-#include "VulkanProgram.h"
 #include <unordered_map>
 #include <vector>
+
+#include "PixieRendering/Material/IMaterial.h"
+#include "VulkanProgram.h"
 
 namespace PixieRenderer {
 
@@ -14,7 +14,7 @@ class VulkanGraphicsProgram : public VulkanProgram {
 	VulkanGraphicsProgram(
 	    VulkanDevice& device,
 	    VkRenderPass renderPass,
-	    const Material* materialInfo
+	    const IMaterial* materialInfo
 	);
 	~VulkanGraphicsProgram() override;
 

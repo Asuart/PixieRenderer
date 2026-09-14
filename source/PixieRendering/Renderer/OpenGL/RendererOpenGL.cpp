@@ -6,7 +6,7 @@
 
 namespace PixieRenderer {
 
-RendererOpenGL::RendererOpenGL(Window* mainWindow) : IRenderer(mainWindow, RenderAPI::OpenGL) {
+RendererOpenGL::RendererOpenGL(IWindow* mainWindow) : IRenderer(mainWindow, RenderAPI::OpenGL) {
 	if (!gladLoadGL()) {
 		std::cerr << "GLAD initialization failed\n";
 		exit(2);
@@ -269,7 +269,7 @@ void RendererOpenGL::LoadUniformBuffer(
 	// glBufferData(GL_UNIFORM_BUFFER, size, (GLvoid*)data, GL_DYNAMIC_DRAW);
 }
 
-MaterialHandle RendererOpenGL::CreateMaterial(const Material* materialInfo) {
+MaterialHandle RendererOpenGL::CreateMaterial(const IMaterial* materialInfo) {
 	return m_resourceManager.CreateMaterial(materialInfo);
 }
 

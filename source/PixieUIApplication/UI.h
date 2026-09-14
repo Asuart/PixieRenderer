@@ -6,7 +6,7 @@
 #include "UIImage.h"
 
 namespace PixieRenderer {
-class Window;
+class IWindow;
 struct WindowEvent;
 } // namespace PixieRenderer
 
@@ -16,7 +16,7 @@ class UIWindow;
 
 class UI {
   public:
-	UI(PixieRenderer::Window* window, bool docking);
+	UI(PixieRenderer::IWindow* window, bool docking);
 	virtual ~UI();
 
 	virtual void HandleEvent(const PixieRenderer::WindowEvent& event);
@@ -34,7 +34,7 @@ class UI {
 	) = 0;
 
   protected:
-	PixieRenderer::Window* m_window;
+	PixieRenderer::IWindow* m_window;
 	std::vector<UIWindow*> m_windows;
 	bool m_isDocking;
 

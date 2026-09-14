@@ -1,5 +1,5 @@
 #pragma once
-#include "Window.h"
+#include "IWindow.h"
 
 #include <vulkan/vulkan.h>
 
@@ -7,9 +7,9 @@ namespace PixieRenderer {
 
 class RendererVulkan;
 
-class WindowVulkan : public Window {
+class WindowVulkan : public IWindow {
   public:
-	WindowVulkan(const std::string& name, glm::ivec2 resolution);
+	WindowVulkan(std::string_view name, glm::ivec2 resolution);
 	~WindowVulkan();
 
 	std::vector<const char*> GetRequiredExtensions();

@@ -1,16 +1,12 @@
 #pragma once
-#include "PixieRendering/Resources/Material.h"
+#include "IMaterial.h"
 
 #include <glm/glm.hpp>
 
-#include "PixieRendering/Resources/ResourceHandles.h"
-
 namespace PixieRenderer {
 
-class PBRMaterial : public Material {
+class PBRMaterial : public IMaterial {
   public:
-	MaterialHandle m_handle;
-
 	PBRMaterial();
 
 	glm::vec3 GetAlbedo() const;

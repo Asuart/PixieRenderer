@@ -8,7 +8,7 @@
 
 namespace PixieRenderer {
 
-RendererVulkan::RendererVulkan(Window* window)
+RendererVulkan::RendererVulkan(IWindow* window)
     : IRenderer(window, RenderAPI::Vulkan), m_resourceManager(m_device) {
 	InitVulkan();
 	m_surfaceResolution = window->GetResolution();
@@ -531,7 +531,7 @@ void RendererVulkan::LoadUniformBuffer(
 	}
 }
 
-MaterialHandle RendererVulkan::CreateMaterial(const Material* materialInfo) {
+MaterialHandle RendererVulkan::CreateMaterial(const IMaterial* materialInfo) {
 	return m_resourceManager
 	    .CreateGraphicsProgram(m_presentRenderPass->GetRenderPass(), materialInfo);
 }

@@ -1,4 +1,5 @@
 #include "ResourceManagerVulkan.h"
+
 #include <cassert>
 
 namespace PixieRenderer {
@@ -17,7 +18,7 @@ void ResourceManagerVulkan::AddRef(uint64_t id) {
 		if (index < m_meshes.size() && m_meshes[index].resource)
 			++m_meshes[index].refCount;
 		break;
-	case ResourceType::Material:
+	case ResourceType::IMaterial:
 		if (index < m_graphicsPrograms.size() && m_graphicsPrograms[index].resource)
 			++m_graphicsPrograms[index].refCount;
 		break;
@@ -59,7 +60,7 @@ void ResourceManagerVulkan::Release(uint64_t id) {
 			}
 		}
 		break;
-	case ResourceType::Material:
+	case ResourceType::IMaterial:
 		if (index < m_graphicsPrograms.size() && m_graphicsPrograms[index].resource) {
 			if (--m_graphicsPrograms[index].refCount == 0) {
 				m_graphicsPrograms[index].resource.reset();

@@ -1,7 +1,7 @@
 #pragma once
 #include <memory>
 
-#include "../Resources/ResourceHandles.h"
+#include "ResourceHandles.h"
 
 namespace PixieRenderer {
 

@@ -1,6 +1,6 @@
 #include "ResourceHandles.h"
 
-#include "PixieRendering/ResourceManager/IResourceManager.h"
+#include "IResourceManager.h"
 
 namespace PixieRenderer {
 
@@ -77,7 +77,7 @@ template <ResourceType t> void ResourceHandle<t>::Reset() {
 
 template class ResourceHandle<ResourceType::Texture>;
 template class ResourceHandle<ResourceType::Mesh>;
-template class ResourceHandle<ResourceType::Material>;
+template class ResourceHandle<ResourceType::IMaterial>;
 template class ResourceHandle<ResourceType::ComputeProgram>;
 template class ResourceHandle<ResourceType::FrameBuffer>;
 template class ResourceHandle<ResourceType::ShaderStorageBuffer>;

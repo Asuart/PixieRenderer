@@ -43,7 +43,7 @@ class ResourceManagerVulkan : public IResourceManager {
 		m_graphicsPrograms.back().resource = std::make_unique<
 		    VulkanGraphicsProgram>(m_device, std::forward<Args>(args)...);
 		m_graphicsPrograms.back().refCount = 0;
-		uint64_t id = MakeId(ResourceType::Material, index);
+		uint64_t id = MakeId(ResourceType::IMaterial, index);
 		return MaterialHandle(this, id);
 	}
 

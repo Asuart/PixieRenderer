@@ -14,6 +14,7 @@ target_include_directories(PixieRendering PUBLIC "${glm_SOURCE_DIR}")
 
 target_link_libraries(PixieRendering PUBLIC glfw)
 
+target_link_libraries(PixieRendering PRIVATE meshoptimizer)
 target_link_libraries(PixieRendering PRIVATE glad)
 target_link_libraries(PixieRendering PRIVATE glslang)
 target_link_libraries(PixieRendering PRIVATE glslang-default-resource-limits)

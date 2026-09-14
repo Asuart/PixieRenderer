@@ -6,7 +6,7 @@ namespace PixieRenderer {
 enum class ResourceType : uint32_t {
 	Texture = 0,
 	Mesh,
-	Material,
+	IMaterial,
 	ComputeProgram,
 	FrameBuffer,
 	ShaderStorageBuffer,
@@ -46,7 +46,7 @@ template <ResourceType t> class ResourceHandle {
 
 using TextureHandle = ResourceHandle<ResourceType::Texture>;
 using MeshHandle = ResourceHandle<ResourceType::Mesh>;
-using MaterialHandle = ResourceHandle<ResourceType::Material>;
+using MaterialHandle = ResourceHandle<ResourceType::IMaterial>;
 using ComputeProgramHandle = ResourceHandle<ResourceType::ComputeProgram>;
 using FrameBufferHandle = ResourceHandle<ResourceType::FrameBuffer>;
 using ShaderStorageBufferHandle = ResourceHandle<ResourceType::ShaderStorageBuffer>;

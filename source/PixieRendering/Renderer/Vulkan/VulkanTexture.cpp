@@ -6,6 +6,7 @@
 #include "VulkanDevice.h"
 #include "VulkanPhysicalDeviceUtils.h"
 #include "VulkanSampler.h"
+#include "PixieRendering/Image/ImageUtils.h"
 
 namespace PixieRenderer {
 

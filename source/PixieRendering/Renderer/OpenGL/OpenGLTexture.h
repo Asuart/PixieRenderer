@@ -2,8 +2,7 @@
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 
-#include "PixieRendering/TextureEnums.h"
-#include "PixieRendering/Resources/Image2D.h"
+#include "PixieRendering/Image/Image2D.h"
 
 namespace PixieRenderer {
 
@@ -36,7 +35,7 @@ struct OpenGLTexture {
 
 constexpr GLint CastTextureWrapOpenGL(TextureWrap wrap) {
 	switch (wrap) {
-	case TextureWrap::Reapeat:
+	case TextureWrap::Repeat:
 		return GL_REPEAT;
 	case TextureWrap::MirroredRepeat:
 		return GL_MIRRORED_REPEAT;

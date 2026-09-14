@@ -47,12 +47,15 @@ void main()
 
 namespace PixieRenderer {
 
-MeshIslandsMaterial::MeshIslandsMaterial()
-    : Material("Mesh Islands Material", cVertexShaderSource, cFragmentShaderSource) {
+MeshIslandsMaterial::MeshIslandsMaterial() : IMaterial(cVertexShaderSource, cFragmentShaderSource) {
 }
 
-void MeshIslandsMaterial::Bind(IRenderer* /*renderer*/) {
+glm::vec4 MeshIslandsMaterial::GetColor() const {
+	return m_color;
+}
 
+void MeshIslandsMaterial::SetColor(const glm::vec4& color) {
+	m_color = color;
 }
 
 glm::vec4 MeshIslandsMaterial::MakeUniqueDebugColor(uint32_t id, float saturation, float value) {

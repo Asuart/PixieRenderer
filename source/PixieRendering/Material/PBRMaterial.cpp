@@ -104,12 +104,8 @@ void main()
 
     vec3 N = normalize(Normal);
 
-    // --- Normal mapping ---
     vec3 normalMap = texture(normalTexture, TexCoord).rgb;
     normalMap = normalMap * 2.0 - 1.0;
-
-    // Если нормали в текстуре в DirectX-стиле (Y вниз), раскомментируй:
-    // normalMap.y = -normalMap.y;
 
     vec3 dp1 = dFdx(WorldPos);
     vec3 dp2 = dFdy(WorldPos);
@@ -160,7 +156,7 @@ void main()
 
 namespace PixieRenderer {
 
-PBRMaterial::PBRMaterial() : Material("PBR Material", cVertexShaderSource, cFragmentShaderSource) {
+PBRMaterial::PBRMaterial() : IMaterial(cVertexShaderSource, cFragmentShaderSource) {
 }
 
 glm::vec3 PBRMaterial::GetAlbedo() const {

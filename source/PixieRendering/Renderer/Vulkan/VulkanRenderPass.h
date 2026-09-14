@@ -3,7 +3,7 @@
 
 #include <vulkan/vulkan.h>
 
-#include "PixieRendering/Resources/ResourceHandles.h"
+#include "PixieRendering/ResourceManager/ResourceHandles.h"
 #include "PixieRendering/ResourceManager/IResourceManager.h"
 
 #include "VulkanFrameBuffer.h"

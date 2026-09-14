@@ -3,21 +3,25 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
+#include "PixieRendering/Renderer/Vulkan/RendererVulkan.h"
+
 namespace PixieRenderer {
 
-WindowVulkan::WindowVulkan(const std::string& name, glm::ivec2 resolution)
-    : Window(name, resolution, RenderAPI::Vulkan) {
+WindowVulkan::WindowVulkan(std::string_view name, glm::ivec2 resolution)
+    : IWindow(name, resolution) {
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
-	m_window = glfwCreateWindow(resolution.x, resolution.y, "Vulkan Window", nullptr, nullptr);
+	m_window = glfwCreateWindow(resolution.x, resolution.y, name.data(), nullptr, nullptr);
 
 	glfwSetWindowUserPointer(m_window, this);
 	glfwSetWindowSizeCallback(m_window, [](GLFWwindow* window, int width, int height) {
-		Window* wnd = static_cast<Window*>(glfwGetWindowUserPointer(window));
+		IWindow* wnd = static_cast<IWindow*>(glfwGetWindowUserPointer(window));
 		if (wnd) {
 			wnd->OnResize(glm::ivec2(width, height));
 		}
 	});
+
+	m_renderer = new RendererVulkan(this);
 }
 
 WindowVulkan::~WindowVulkan() {

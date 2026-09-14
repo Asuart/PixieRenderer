@@ -1,14 +1,12 @@
 #pragma once
 #include <string>
 
-#include "../Window/Window.h"
-
-#include "PixieRendering/RenderAPI.h"
-#include "PixieRendering/Resources/Image2D.h"
-#include "PixieRendering/Resources/Material.h"
-#include "PixieRendering/Resources/Mesh.h"
-#include "PixieRendering/Resources/ResourceHandles.h"
-#include "PixieRendering/TextureEnums.h"
+#include "PixieRendering/Image/Image2D.h"
+#include "PixieRendering/Material/IMaterial.h"
+#include "PixieRendering/Mesh/Mesh.h"
+#include "PixieRendering/Renderer/RenderAPI.h"
+#include "PixieRendering/ResourceManager/ResourceHandles.h"
+#include "PixieRendering/Window/IWindow.h"
 
 namespace PixieRenderer {
 
@@ -16,13 +14,12 @@ class Window;
 
 class IRenderer {
   public:
-	IRenderer(Window* window, RenderAPI renderAPI) : m_window(window), m_renderAPI(renderAPI) {
-		window->SetRenderer(this);
+	IRenderer(IWindow* window, RenderAPI renderAPI) : m_window(window), m_renderAPI(renderAPI) {
 	}
 
 	virtual ~IRenderer() {};
 
-	inline Window* GetWindow() const {
+	inline IWindow* GetWindow() const {
 		return m_window;
 	}
 
@@ -113,7 +110,7 @@ class IRenderer {
 	    size_t size
 	) = 0;
 
-	virtual MaterialHandle CreateMaterial(const Material* materialInfo) = 0;
+	virtual MaterialHandle CreateMaterial(const IMaterial* materialInfo) = 0;
 
 	virtual ComputeProgramHandle CreateComputeProgram(const char* source) = 0;
 	virtual void DispatchComputeProgram(
@@ -127,7 +124,7 @@ class IRenderer {
 	virtual void MemoryBarriersAll() = 0;
 
   protected:
-	Window* m_window = nullptr;
+	IWindow* m_window = nullptr;
 	RenderAPI m_renderAPI = RenderAPI::Undefined;
 	glm::uvec2 m_surfaceResolution = { 0, 0 };
 };

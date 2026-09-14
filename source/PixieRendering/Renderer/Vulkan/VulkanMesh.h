@@ -3,7 +3,7 @@
 
 #include <vulkan/vulkan.h>
 
-#include "../../Resources/Mesh.h"
+#include "PixieRendering/Mesh/Mesh.h"
 #include "VulkanBuffer.h"
 
 namespace PixieRenderer {

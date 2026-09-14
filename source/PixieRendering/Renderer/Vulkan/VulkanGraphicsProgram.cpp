@@ -11,18 +11,18 @@ namespace PixieRenderer {
 VulkanGraphicsProgram::VulkanGraphicsProgram(
     VulkanDevice& device,
     VkRenderPass defaultRenderPass,
-    const Material* materialInfo
+    const IMaterial* materialInfo
 )
     : VulkanProgram(device), m_defaultRenderPass(defaultRenderPass) {
 
 	if (!materialInfo) {
-		throw std::runtime_error("Material info is null");
+		throw std::runtime_error("IMaterial info is null");
 	}
 
 	CompiledShader compiled = ShaderCompilerVulkan::CompileShader(
 	    m_device.GetDevice(),
-	    materialInfo->vertexShaderSource,
-	    materialInfo->fragmentShaderSource
+	    materialInfo->vertexShaderSource.c_str(),
+	    materialInfo->fragmentShaderSource.c_str()
 	);
 
 	m_shaderModules = std::move(compiled.stages);

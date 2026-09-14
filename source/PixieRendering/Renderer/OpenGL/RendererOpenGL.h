@@ -8,11 +8,11 @@
 
 namespace PixieRenderer {
 
-class Window;
+class IWindow;
 
 class RendererOpenGL : public IRenderer {
   public:
-	RendererOpenGL(Window* mainWindow);
+	RendererOpenGL(IWindow* mainWindow);
 	~RendererOpenGL();
 
 	bool BeginFrame() override;
@@ -88,7 +88,7 @@ class RendererOpenGL : public IRenderer {
 	    size_t size
 	) override;
 
-	MaterialHandle CreateMaterial(const Material* materialInfo) override;
+	MaterialHandle CreateMaterial(const IMaterial* materialInfo) override;
 
 	ComputeProgramHandle CreateComputeProgram(const char* source) override;
 	void
