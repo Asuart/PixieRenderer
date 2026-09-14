@@ -43,8 +43,4 @@ WindowOpenGL::~WindowOpenGL() {
 	}
 }
 
-void WindowOpenGL::HandleEvent(const WindowEvent& event) {
-	IWindow::HandleEvent(event);
-}
-
 } // namespace PixieRenderer

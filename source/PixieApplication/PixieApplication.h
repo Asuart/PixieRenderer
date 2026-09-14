@@ -32,7 +32,6 @@ class PixieApplication {
 	}
 	virtual void AfterDrawFrame() {
 	}
-	virtual void HandleEvent(const PixieRenderer::WindowEvent&) {};
 };
 
 } // namespace PixieApp

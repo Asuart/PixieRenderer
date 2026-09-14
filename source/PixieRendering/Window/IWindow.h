@@ -5,7 +5,6 @@
 #include <glm/glm.hpp>
 
 #include "PixieRendering/Renderer/RenderAPI.h"
-#include "PixieRendering/Window/WindowEvent.h"
 
 struct GLFWwindow;
 
@@ -23,7 +22,6 @@ class IWindow {
 	RenderAPI GetRenderAPI() const;
 	GLFWwindow* GetGLFWWindow() const;
 
-	virtual void HandleEvent(const WindowEvent& event);
 	virtual void SwapBuffers();
 	virtual void PollEvents();
 	virtual void Close();

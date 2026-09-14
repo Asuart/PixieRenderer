@@ -38,9 +38,4 @@ void PixieUIApplication::OnDrawFrame() {
 	m_ui->Draw();
 }
 
-void PixieUIApplication::HandleEvent(const WindowEvent& event) {
-	m_ui->HandleEvent(event);
-	HandleEventAfterUI(event);
-}
-
 } // namespace PixieApp

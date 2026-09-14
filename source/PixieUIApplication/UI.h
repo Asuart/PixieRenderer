@@ -7,7 +7,6 @@
 
 namespace PixieRenderer {
 class IWindow;
-struct WindowEvent;
 } // namespace PixieRenderer
 
 namespace PixieUI {
@@ -19,7 +18,6 @@ class UI {
 	UI(PixieRenderer::IWindow* window, bool docking);
 	virtual ~UI();
 
-	virtual void HandleEvent(const PixieRenderer::WindowEvent& event);
 	virtual void AddWindow(UIWindow* window);
 
 	void OnBeforeDrawFrame();

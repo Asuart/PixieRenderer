@@ -44,9 +44,6 @@ void IWindow::Close() {
 	glfwSetWindowShouldClose(m_window, true);
 }
 
-void IWindow::HandleEvent(const WindowEvent&) {
-}
-
 void IWindow::SwapBuffers() {
 	glfwSwapBuffers(m_window);
 }

@@ -18,10 +18,7 @@ class PixieUIApplication : public PixieApplication {
 
 	virtual void BeforeDrawFrame() override;
 	void OnDrawFrame() final;
-	void HandleEvent(const PixieRenderer::WindowEvent& event) final;
-
 	virtual void OnBeforeDrawUI() {};
-	virtual void HandleEventAfterUI(const PixieRenderer::WindowEvent&) {};
 
   protected:
 	PixieUI::UI* m_ui;

@@ -24,13 +24,6 @@ UI::~UI() {
 	}
 }
 
-void UI::HandleEvent(const PixieRenderer::WindowEvent& event) {
-	// ImGui_ImplSDL2_ProcessEvent(&event);
-	for (PixieUI::UIWindow* window : m_windows) {
-		window->HandleEvent(event);
-	}
-}
-
 void UI::AddWindow(PixieUI::UIWindow* window) {
 	if (!window) {
 		return;
