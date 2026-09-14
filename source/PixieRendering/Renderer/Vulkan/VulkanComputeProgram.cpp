@@ -1,7 +1,8 @@
+#include "PixieRendering/pch.h"
 #include "VulkanComputeProgram.h"
+
 #include "VulkanConfig.h"
 #include "VulkanDevice.h"
-#include <stdexcept>
 
 namespace PixieRenderer {
 

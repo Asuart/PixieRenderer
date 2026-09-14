@@ -1,3 +1,4 @@
+#include "PixieRendering/pch.h"
 #include "PBRMaterial.h"
 
 #include "PixieRendering/Renderer/IRenderer.h"

@@ -1,8 +1,5 @@
+#include "PixieRendering/pch.h"
 #include "ShaderCompiler.h"
-
-#include <algorithm>
-#include <unordered_map>
-#include <stdexcept>
 
 namespace PixieRenderer {
 

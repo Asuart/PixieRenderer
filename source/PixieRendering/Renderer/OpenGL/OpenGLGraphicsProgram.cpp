@@ -1,3 +1,4 @@
+#include "PixieRendering/pch.h"
 #include "OpenGLGraphicsProgram.h"
 
 #include "ShaderCompilationOpenGL.h"

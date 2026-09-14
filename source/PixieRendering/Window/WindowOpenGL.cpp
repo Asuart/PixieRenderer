@@ -1,10 +1,5 @@
+#include "PixieRendering/pch.h"
 #include "WindowOpenGL.h"
-
-#include <iostream>
-
-#include <glad/glad.h>
-
-#include <GLFW/glfw3.h>
 
 #include "PixieRendering/Renderer/OpenGL/RendererOpenGL.h"
 

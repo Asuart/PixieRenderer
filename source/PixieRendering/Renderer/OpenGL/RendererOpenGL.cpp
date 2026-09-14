@@ -1,6 +1,5 @@
+#include "PixieRendering/pch.h"
 #include "RendererOpenGL.h"
-
-#include <iostream>
 
 #include "OpenGLCallbacks.h"
 

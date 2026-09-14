@@ -1,3 +1,4 @@
+#include "PixieRendering/pch.h"
 #include "OpenGLTexture.h"
 
 namespace PixieRenderer {

@@ -1,3 +1,4 @@
+#include "PixieRendering/pch.h"
 #include "Image2D.h"
 
 #include "ImageUtils.h"

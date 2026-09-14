@@ -1,6 +1,5 @@
+#include "PixieRendering/pch.h"
 #include "ResourceManagerOpenGL.h"
-
-#include <cassert>
 
 namespace PixieRenderer {
 

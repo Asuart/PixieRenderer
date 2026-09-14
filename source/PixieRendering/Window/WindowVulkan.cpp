@@ -1,7 +1,5 @@
+#include "PixieRendering/pch.h"
 #include "WindowVulkan.h"
-
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
 
 #include "PixieRendering/Renderer/Vulkan/RendererVulkan.h"
 

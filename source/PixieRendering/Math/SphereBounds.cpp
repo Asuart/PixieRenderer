@@ -1,3 +1,4 @@
+#include "PixieRendering/pch.h"
 #include "SphereBounds.h"
 
 namespace PixieRenderer {

@@ -1,7 +1,5 @@
+#include "PixieRendering/pch.h"
 #include "VulkanInstance.h"
-
-#include <iostream>
-#include <stdexcept>
 
 #include "VulkanConfig.h"
 #include "DebugVulkan.h"

@@ -1,6 +1,5 @@
+#include "PixieRendering/pch.h"
 #include "VulkanSwapchain.h"
-
-#include <algorithm>
 
 #include "VulkanDevice.h"
 #include "VulkanPhysicalDeviceUtils.h"

@@ -1,6 +1,5 @@
+#include "PixieRendering/pch.h"
 #include "DebugVulkan.h"
-
-#include <iostream>
 
 namespace PixieRenderer {
 

@@ -9,6 +9,10 @@ set_target_properties(PixieRendering PROPERTIES
     CXX_EXTENSIONS OFF
 )
 
+target_precompile_headers(PixieRendering PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/pch.h"
+)
+
 target_include_directories(PixieRendering PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../")
 target_include_directories(PixieRendering PUBLIC "${glm_SOURCE_DIR}")
 

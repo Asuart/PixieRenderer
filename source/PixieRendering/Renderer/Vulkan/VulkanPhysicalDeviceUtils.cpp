@@ -1,8 +1,5 @@
+#include "PixieRendering/pch.h"
 #include "VulkanPhysicalDeviceUtils.h"
-
-#include <iomanip>
-#include <iostream>
-#include <set>
 
 namespace PixieRenderer {
 

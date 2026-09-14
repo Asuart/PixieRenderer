@@ -1,8 +1,5 @@
+#include "PixieRendering/pch.h"
 #include "ShaderCompilationOpenGL.h"
-
-#include <vector>
-#include <iostream>
-#include <string>
 
 namespace PixieRenderer {
 

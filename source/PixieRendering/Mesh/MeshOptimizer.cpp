@@ -1,3 +1,4 @@
+#include "PixieRendering/pch.h"
 #include "MeshOptimizer.h"
 
 #include <meshoptimizer.h>

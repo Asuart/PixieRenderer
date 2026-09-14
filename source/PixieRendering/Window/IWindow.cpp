@@ -1,8 +1,5 @@
+#include "PixieRendering/pch.h"
 #include "IWindow.h"
-
-#include <iostream>
-
-#include <GLFW/glfw3.h>
 
 #include "PixieRendering/Renderer/IRenderer.h"
 

@@ -1,3 +1,4 @@
+#include "PixieRendering/pch.h"
 #include "ResourceHandles.h"
 
 #include "IResourceManager.h"

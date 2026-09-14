@@ -1,6 +1,5 @@
-﻿#include "MeshIslandsMaterial.h"
-
-#include <cmath>
+﻿#include "PixieRendering/pch.h"
+#include "MeshIslandsMaterial.h"
 
 #include "PixieRendering/Renderer/IRenderer.h"
 

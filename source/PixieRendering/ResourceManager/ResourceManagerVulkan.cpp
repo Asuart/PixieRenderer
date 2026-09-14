@@ -1,6 +1,5 @@
+#include "PixieRendering/pch.h"
 #include "ResourceManagerVulkan.h"
-
-#include <cassert>
 
 namespace PixieRenderer {
 

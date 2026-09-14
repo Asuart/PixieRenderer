@@ -1,6 +1,5 @@
+#include "PixieRendering/pch.h"
 #include "VulkanTexture.h"
-
-#include <stdexcept>
 
 #include "VulkanBuffer.h"
 #include "VulkanDevice.h"
