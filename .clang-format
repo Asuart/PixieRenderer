@@ -2,7 +2,7 @@ IndentWidth: 4
 UseTab: ForIndentation
 TabWidth: 4
 AllowShortFunctionsOnASingleLine: None
-ColumnLimit: 100
+ColumnLimit: 120
 PointerAlignment: Left
 DerivePointerAlignment: false
 

@@ -124,6 +124,8 @@ class RendererVulkan : public IRenderer {
 	std::vector<VkRenderPass> m_renderPasses = {};
 	FrameBufferHandle m_activeFrameBuffer = {};
 	VulkanRenderPass* m_currentRenderPass = nullptr;
+	glm::uvec2 m_surfaceResolution = { 0, 0 };
+
 	bool m_swapchainNeedsRecreate = false;
 
 	VkCommandPool m_commandPool = VK_NULL_HANDLE;

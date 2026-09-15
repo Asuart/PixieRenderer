@@ -1,132 +1,108 @@
 #pragma once
-#include <string>
+#include <span>
+#include <string_view>
 
+#include "PixieRendering/Buffer/BufferTypes.h"
+#include "PixieRendering/ComputeProgram/IComputeProgram.h"
 #include "PixieRendering/Image/Image2D.h"
 #include "PixieRendering/Material/IMaterial.h"
 #include "PixieRendering/Mesh/Mesh.h"
-#include "PixieRendering/Renderer/RenderAPI.h"
 #include "PixieRendering/ResourceManager/ResourceHandles.h"
-#include "PixieRendering/Window/IWindow.h"
 
 namespace PixieRenderer {
 
-class Window;
+struct MemoryExtent {
+	size_t start;
+	size_t size;
+};
+
+struct ScreenRect {
+	glm::ivec2 origin = { 0, 0 };
+	glm::uvec2 size = { 0, 0 };
+};
+
+struct DrawRequest {
+	MaterialHandle material;
+	MeshHandle mesh;
+	std::span<const std::byte> inlineData{};
+};
+
+struct DispatchRequest {
+	ComputeProgramHandle program;
+	uint32_t x = 1;
+	uint32_t y = 1;
+	uint32_t z = 1;
+	std::span<const std::byte> inlineData{};
+};
 
 class IRenderer {
   public:
-	IRenderer(IWindow* window, RenderAPI renderAPI) : m_window(window), m_renderAPI(renderAPI) {
-	}
+	static constexpr size_t cMaxInlineDataSize = 128;
 
-	virtual ~IRenderer() {};
-
-	inline IWindow* GetWindow() const {
-		return m_window;
-	}
-
-	inline RenderAPI GetRenderAPI() const {
-		return m_renderAPI;
-	}
+	virtual ~IRenderer() = default;
 
 	virtual bool BeginFrame() = 0;
 	virtual void EndFrame() = 0;
 
-	virtual void BeginRenderPass(FrameBufferHandle handle = FrameBufferHandle()) = 0;
-	virtual void EndRenderPass() = 0;
+	virtual void BindDefaultFrameBuffer() = 0;
+	virtual void BindFrameBuffer(FrameBufferHandle handle) = 0;
 
-	virtual void SetRenderResolution(glm::uvec2 resolution) = 0;
-	virtual void SetViewport(glm::ivec2 start, glm::uvec2 resolution) = 0;
-	virtual void SetScissor(glm::ivec2 start, glm::uvec2 resolution) = 0;
+	virtual void SetViewport(ScreenRect rect) = 0;
+	virtual void SetScissor(ScreenRect rect) = 0;
 
 	virtual MeshHandle CreateMesh(const Mesh* mesh) = 0;
-	virtual void LoadMesh(MeshHandle handle, const Mesh* mesh) = 0;
-	virtual void DrawMesh(
-	    MeshHandle meshHandle,
-	    MaterialHandle materialHandle,
-	    void* pushConstantsData = nullptr,
-	    uint32_t pushConstantdsDataSize = 0
-	) = 0;
+	virtual void UpdateMesh(MeshHandle handle, const Mesh* mesh) = 0;
 
-	virtual FrameBufferHandle CreateFrameBuffer(
-	    glm::uvec2 resolution,
-	    TextureFormat format,
-	    bool isPresentBuffer = false
-	) = 0;
-	virtual void ResizeFrameBuffer(FrameBufferHandle handle, glm::uvec2 resolution) = 0;
+	virtual FrameBufferHandle CreateFrameBuffer(glm::uvec2 resolution, TextureFormat format) = 0;
+	virtual FrameBufferHandle CreatePresentFrameBuffer(glm::uvec2 resolution, TextureFormat format) = 0;
 	virtual glm::uvec2 GetFrameBufferResolution(FrameBufferHandle handle) = 0;
+	virtual void SetFrameBufferResolution(FrameBufferHandle handle, glm::uvec2 resolution) = 0;
 
-	virtual TextureHandle CreateTexture(const Image2D* image, uint32_t mipLevels = 1) = 0;
-	virtual void LoadTexture(TextureHandle handle, const Image2D* image) = 0;
-	virtual void SetTextureFiltering(
-	    TextureHandle handle,
-	    TextureFiltering minFilter,
-	    TextureFiltering magFilter
-	) = 0;
-	virtual void SetTextureWrap(
-	    TextureHandle handle,
-	    TextureWrap wrapU,
-	    TextureWrap wrapV,
-	    TextureWrap wrapW
-	) = 0;
-	virtual glm::ivec2 GetTextureResolution(TextureHandle handle) = 0;
-	virtual void BindTexture(
-	    MaterialHandle materialHandle,
-	    const std::string& name,
-	    TextureHandle textureHandle,
-	    uint32_t index
-	) = 0;
-	virtual void BindTexture(
-	    ComputeProgramHandle computeProgramHandle,
-	    const std::string& name,
-	    TextureHandle textureHandle,
-	    uint32_t index
-	) = 0;
+	virtual TextureHandle CreateTexture(const Image2D* image) = 0;
+	virtual void UpdateTexture(TextureHandle handle, const Image2D* image) = 0;
+	virtual glm::uvec2 GetTextureResolution(TextureHandle handle) = 0;
 
-	virtual ShaderStorageBufferHandle CreateShaderStorageBuffer(
-	    const uint8_t* data,
-	    uint32_t size
-	) = 0;
-	virtual void LoadShaderStorageBuffer(
-	    ShaderStorageBufferHandle handle,
-	    const uint8_t* data,
-	    uint32_t size
-	) = 0;
-	virtual uint32_t GetShaderStorageBufferSize(ShaderStorageBufferHandle handle) = 0;
-	virtual std::vector<uint8_t> GetShaderStorageBufferData(
-	    ShaderStorageBufferHandle handle,
-	    uint32_t offset,
-	    uint32_t size
-	) = 0;
-
-	virtual UniformBufferHandle CreateUniformBuffer(const uint8_t* data, uint32_t size) = 0;
-	virtual void LoadUniformBuffer(
-	    UniformBufferHandle handle,
-	    const uint8_t* data,
-	    uint32_t size
-	) = 0;
-	virtual void LoadUniformBuffer(
-	    MaterialHandle handle,
-	    const std::string& name,
-	    const void* data,
-	    size_t size
-	) = 0;
+	virtual BufferHandle CreateBuffer(BufferType type, size_t size) = 0;
+	virtual BufferHandle CreateBuffer(BufferType type, std::span<const std::byte> data) = 0;
+	virtual void UpdateBuffer(BufferHandle handle, std::span<const std::byte>, size_t offset = 0) = 0;
+	virtual size_t GetBufferSize(BufferHandle handle) = 0;
+	virtual std::vector<std::byte> ReadBuffer(BufferHandle handle, MemoryExtent extent) = 0;
 
 	virtual MaterialHandle CreateMaterial(const IMaterial* materialInfo) = 0;
+	virtual ComputeProgramHandle CreateComputeProgram(const IComputeProgram* computeInfo) = 0;
 
-	virtual ComputeProgramHandle CreateComputeProgram(const char* source) = 0;
-	virtual void DispatchComputeProgram(
-	    ComputeProgramHandle handle,
-	    int32_t x,
-	    int32_t y,
-	    int32_t z
+	virtual void DrawMesh(DrawRequest request) = 0;
+	virtual void DispatchComputeProgram(DispatchRequest request) = 0;
+
+	virtual void BindTexture(
+	    MaterialHandle materialHandle,
+	    std::string_view name,
+	    TextureHandle textureHandle,
+	    uint32_t arrayIndex = 0
+	) = 0;
+	virtual void BindTexture(
+	    ComputeProgramHandle programHandle,
+	    std::string_view name,
+	    TextureHandle textureHandle,
+	    uint32_t arrayIndex = 0
+	) = 0;
+	virtual void BindBuffer(
+	    MaterialHandle materialHandle,
+	    std::string_view name,
+	    BufferHandle bufferHandle,
+	    MemoryExtent range = {}
+	) = 0;
+	virtual void BindBuffer(
+	    ComputeProgramHandle programHandle,
+	    std::string_view name,
+	    BufferHandle bufferHandle,
+	    MemoryExtent range = {}
 	) = 0;
 
 	virtual void WaitIdle() = 0;
-	virtual void MemoryBarriersAll() = 0;
 
-  protected:
-	IWindow* m_window = nullptr;
-	RenderAPI m_renderAPI = RenderAPI::Undefined;
-	glm::uvec2 m_surfaceResolution = { 0, 0 };
+	virtual size_t GetUniformBufferOffsetAlignment() const = 0;
+	virtual size_t GetStorageBufferOffsetAlignment() const = 0;
 };
 
 } // namespace PixieRenderer

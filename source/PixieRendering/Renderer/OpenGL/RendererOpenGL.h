@@ -95,12 +95,12 @@ class RendererOpenGL : public IRenderer {
 	DispatchComputeProgram(ComputeProgramHandle handle, int32_t x, int32_t y, int32_t z) override;
 
 	void WaitIdle() override;
-	void MemoryBarriersAll() override;
 
 	GLuint GetInternalTextureID(TextureHandle handle);
 	GLuint GetInternalFrameBufferColorAttachmentID(FrameBufferHandle handle);
 
   private:
+	glm::uvec2 m_surfaceResolution = { 0, 0 };
 	ResourceManagerOpenGL m_resourceManager = {};
 	std::vector<ViewportStateOpenGL> m_viewportStates;
 
