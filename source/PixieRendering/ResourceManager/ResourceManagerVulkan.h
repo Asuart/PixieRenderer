@@ -69,11 +69,11 @@ class ResourceManagerVulkan : public IResourceManager {
 
 	template <typename... Args>
 	ShaderStorageBufferHandle CreateShaderStorageBuffer(Args&&... args) {
-		uint32_t index = static_cast<uint32_t>(m_shaderStorageBuffers.size());
-		m_shaderStorageBuffers.emplace_back();
-		m_shaderStorageBuffers.back()
+		uint32_t index = static_cast<uint32_t>(m_buffers.size());
+		m_buffers.emplace_back();
+		m_buffers.back()
 		    .resource = std::make_unique<VulkanBuffer>(m_device, std::forward<Args>(args)...);
-		m_shaderStorageBuffers.back().refCount = 0;
+		m_buffers.back().refCount = 0;
 		uint64_t id = MakeId(ResourceType::ShaderStorageBuffer, index);
 		return ShaderStorageBufferHandle(this, id);
 	}
@@ -110,7 +110,7 @@ class ResourceManagerVulkan : public IResourceManager {
 	std::vector<ResourceEntry<VulkanGraphicsProgram>> m_graphicsPrograms;
 	std::vector<ResourceEntry<VulkanComputeProgram>> m_computePrograms;
 	std::vector<ResourceEntry<VulkanBuffer>> m_uniformBuffers;
-	std::vector<ResourceEntry<VulkanBuffer>> m_shaderStorageBuffers;
+	std::vector<ResourceEntry<VulkanBuffer>> m_buffers;
 	std::vector<ResourceEntry<VulkanFrameBuffer>> m_frameBuffers;
 };
 

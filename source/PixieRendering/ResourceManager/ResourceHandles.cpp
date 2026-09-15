@@ -78,10 +78,9 @@ template <ResourceType t> void ResourceHandle<t>::Reset() {
 
 template class ResourceHandle<ResourceType::Texture>;
 template class ResourceHandle<ResourceType::Mesh>;
-template class ResourceHandle<ResourceType::IMaterial>;
+template class ResourceHandle<ResourceType::Material>;
 template class ResourceHandle<ResourceType::ComputeProgram>;
 template class ResourceHandle<ResourceType::FrameBuffer>;
-template class ResourceHandle<ResourceType::ShaderStorageBuffer>;
-template class ResourceHandle<ResourceType::UniformBuffer>;
+template class ResourceHandle<ResourceType::Buffer>;
 
 } // namespace PixieRenderer

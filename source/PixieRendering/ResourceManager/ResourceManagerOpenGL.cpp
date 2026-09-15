@@ -18,7 +18,7 @@ void ResourceManagerOpenGL::AddRef(uint64_t id) {
 		if (index < m_frameBuffers.size() && m_frameBuffers[index].resource)
 			++m_frameBuffers[index].refCount;
 		break;
-	case ResourceType::IMaterial:
+	case ResourceType::Material:
 		if (index < m_materials.size() && m_materials[index].resource)
 			++m_materials[index].refCount;
 		break;
@@ -26,13 +26,9 @@ void ResourceManagerOpenGL::AddRef(uint64_t id) {
 		if (index < m_computeShaders.size() && m_computeShaders[index].resource)
 			++m_computeShaders[index].refCount;
 		break;
-	case ResourceType::ShaderStorageBuffer:
-		if (index < m_shaderStorageBuffers.size() && m_shaderStorageBuffers[index].resource)
-			++m_shaderStorageBuffers[index].refCount;
-		break;
-	case ResourceType::UniformBuffer:
-		if (index < m_uniformBuffers.size() && m_uniformBuffers[index].resource)
-			++m_uniformBuffers[index].refCount;
+	case ResourceType::Buffer:
+		if (index < m_buffers.size() && m_buffers[index].resource)
+			++m_buffers[index].refCount;
 		break;
 	default:
 		assert(false);
@@ -60,7 +56,7 @@ void ResourceManagerOpenGL::Release(uint64_t id) {
 				m_frameBuffers[index].resource.reset();
 		}
 		break;
-	case ResourceType::IMaterial:
+	case ResourceType::Material:
 		if (index < m_materials.size() && m_materials[index].resource) {
 			if (--m_materials[index].refCount == 0)
 				m_materials[index].resource.reset();
@@ -72,16 +68,10 @@ void ResourceManagerOpenGL::Release(uint64_t id) {
 				m_computeShaders[index].resource.reset();
 		}
 		break;
-	case ResourceType::ShaderStorageBuffer:
-		if (index < m_shaderStorageBuffers.size() && m_shaderStorageBuffers[index].resource) {
-			if (--m_shaderStorageBuffers[index].refCount == 0)
-				m_shaderStorageBuffers[index].resource.reset();
-		}
-		break;
-	case ResourceType::UniformBuffer:
-		if (index < m_uniformBuffers.size() && m_uniformBuffers[index].resource) {
-			if (--m_uniformBuffers[index].refCount == 0)
-				m_uniformBuffers[index].resource.reset();
+	case ResourceType::Buffer:
+		if (index < m_buffers.size() && m_buffers[index].resource) {
+			if (--m_buffers[index].refCount == 0)
+				m_buffers[index].resource.reset();
 		}
 		break;
 	default:
@@ -89,7 +79,7 @@ void ResourceManagerOpenGL::Release(uint64_t id) {
 	}
 }
 
-OpenGLTexture& ResourceManagerOpenGL::GetTextureEntry(TextureHandle handle) {
+OpenGLTexture& ResourceManagerOpenGL::GetTexture(TextureHandle handle) {
 	auto [type, index] = DecodeId(handle.GetId());
 	assert(
 	    type == ResourceType::Texture && index < m_textures.size() && m_textures[index].resource
@@ -97,13 +87,13 @@ OpenGLTexture& ResourceManagerOpenGL::GetTextureEntry(TextureHandle handle) {
 	return *m_textures[index].resource;
 }
 
-OpenGLMesh& ResourceManagerOpenGL::GetMeshEntry(MeshHandle handle) {
+OpenGLMesh& ResourceManagerOpenGL::GetMesh(MeshHandle handle) {
 	auto [type, index] = DecodeId(handle.GetId());
 	assert(type == ResourceType::Mesh && index < m_meshes.size() && m_meshes[index].resource);
 	return *m_meshes[index].resource;
 }
 
-OpenGLFrameBuffer& ResourceManagerOpenGL::GetFrameBufferEntry(FrameBufferHandle handle) {
+OpenGLFrameBuffer& ResourceManagerOpenGL::GetFrameBuffer(FrameBufferHandle handle) {
 	auto [type, index] = DecodeId(handle.GetId());
 	assert(
 	    type == ResourceType::FrameBuffer && index < m_frameBuffers.size() &&
@@ -112,15 +102,15 @@ OpenGLFrameBuffer& ResourceManagerOpenGL::GetFrameBufferEntry(FrameBufferHandle 
 	return *m_frameBuffers[index].resource;
 }
 
-OpenGLGraphicsProgram& ResourceManagerOpenGL::GetMaterialEntry(MaterialHandle handle) {
+OpenGLGraphicsProgram& ResourceManagerOpenGL::GetMaterial(MaterialHandle handle) {
 	auto [type, index] = DecodeId(handle.GetId());
 	assert(
-	    type == ResourceType::IMaterial && index < m_materials.size() && m_materials[index].resource
+	    type == ResourceType::Material && index < m_materials.size() && m_materials[index].resource
 	);
 	return *m_materials[index].resource;
 }
 
-OpenGLComputeProgram& ResourceManagerOpenGL::GetComputeShaderEntry(ComputeProgramHandle handle) {
+OpenGLComputeProgram& ResourceManagerOpenGL::GetComputeProgram(ComputeProgramHandle handle) {
 	auto [type, index] = DecodeId(handle.GetId());
 	assert(
 	    type == ResourceType::ComputeProgram && index < m_computeShaders.size() &&
@@ -129,24 +119,15 @@ OpenGLComputeProgram& ResourceManagerOpenGL::GetComputeShaderEntry(ComputeProgra
 	return *m_computeShaders[index].resource;
 }
 
-OpenGLBuffer& ResourceManagerOpenGL::GetShaderStorageBufferEntry(
-    ShaderStorageBufferHandle handle
+OpenGLBuffer& ResourceManagerOpenGL::GetBuffer(
+    BufferHandle handle
 ) {
 	auto [type, index] = DecodeId(handle.GetId());
 	assert(
-	    type == ResourceType::ShaderStorageBuffer && index < m_shaderStorageBuffers.size() &&
-	    m_shaderStorageBuffers[index].resource
+	    type == ResourceType::Buffer && index < m_buffers.size() &&
+	    m_buffers[index].resource
 	);
-	return *m_shaderStorageBuffers[index].resource;
-}
-
-OpenGLBuffer& ResourceManagerOpenGL::GetUniformBufferEntry(UniformBufferHandle handle) {
-	auto [type, index] = DecodeId(handle.GetId());
-	assert(
-	    type == ResourceType::UniformBuffer && index < m_uniformBuffers.size() &&
-	    m_uniformBuffers[index].resource
-	);
-	return *m_uniformBuffers[index].resource;
+	return *m_buffers[index].resource;
 }
 
 } // namespace PixieRenderer

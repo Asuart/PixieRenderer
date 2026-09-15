@@ -12,6 +12,7 @@ struct OpenGLBuffer {
 
 	GLuint GetID() const;
 	GLuint GetSize() const;
+	GLenum GetType() const;
 
 	void Bind();
 

@@ -54,13 +54,14 @@ class IRenderer {
 	virtual void UpdateMesh(MeshHandle handle, const Mesh* mesh) = 0;
 
 	virtual FrameBufferHandle CreateFrameBuffer(glm::uvec2 resolution, TextureFormat format) = 0;
-	virtual FrameBufferHandle CreatePresentFrameBuffer(glm::uvec2 resolution, TextureFormat format) = 0;
 	virtual glm::uvec2 GetFrameBufferResolution(FrameBufferHandle handle) = 0;
 	virtual void SetFrameBufferResolution(FrameBufferHandle handle, glm::uvec2 resolution) = 0;
 
 	virtual TextureHandle CreateTexture(const Image2D* image) = 0;
 	virtual void UpdateTexture(TextureHandle handle, const Image2D* image) = 0;
 	virtual glm::uvec2 GetTextureResolution(TextureHandle handle) = 0;
+	virtual void SetTextureFiltering(TextureHandle handle, TextureFiltering minFilter, TextureFiltering magFilter) = 0;
+	virtual void SetTextureWrap(TextureHandle handle, TextureWrap wrapU, TextureWrap wrapV, TextureWrap wrapW) = 0;
 
 	virtual BufferHandle CreateBuffer(BufferType type, size_t size) = 0;
 	virtual BufferHandle CreateBuffer(BufferType type, std::span<const std::byte> data) = 0;

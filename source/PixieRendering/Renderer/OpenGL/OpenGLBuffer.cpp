@@ -1,5 +1,5 @@
-#include "PixieRendering/pch.h"
 #include "OpenGLBuffer.h"
+#include "PixieRendering/pch.h"
 
 namespace PixieRenderer {
 
@@ -17,6 +17,10 @@ GLuint OpenGLBuffer::GetID() const {
 
 GLuint OpenGLBuffer::GetSize() const {
 	return m_size;
+}
+
+GLenum OpenGLBuffer::GetType() const {
+	return m_type;
 }
 
 void OpenGLBuffer::Bind() {

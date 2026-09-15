@@ -12,89 +12,72 @@ class IWindow;
 
 class RendererOpenGL : public IRenderer {
   public:
-	RendererOpenGL(IWindow* mainWindow);
+	RendererOpenGL(IWindow* window);
 	~RendererOpenGL();
 
 	bool BeginFrame() override;
 	void EndFrame() override;
 
-	void BeginRenderPass(FrameBufferHandle handle = FrameBufferHandle()) override;
-	void EndRenderPass() override;
+	void BindDefaultFrameBuffer() override;
+	void BindFrameBuffer(FrameBufferHandle handle) override;
 
-	void SetRenderResolution(glm::uvec2 resolution) override;
-	void SetViewport(glm::ivec2 start, glm::uvec2 resolution) override;
-	void SetScissor(glm::ivec2 start, glm::uvec2 resolution) override;
+	void SetViewport(ScreenRect rect) override;
+	void SetScissor(ScreenRect rect) override;
 
 	MeshHandle CreateMesh(const Mesh* mesh) override;
-	void LoadMesh(MeshHandle handle, const Mesh* mesh) override;
-	void DrawMesh(
-	    MeshHandle meshHandle,
-	    MaterialHandle materialHandle,
-	    void* pushConstantsData = nullptr,
-	    uint32_t pushConstantdsDataSize = 0
-	) override;
+	void UpdateMesh(MeshHandle handle, const Mesh* mesh) override;
 
-	FrameBufferHandle CreateFrameBuffer(glm::uvec2 resolution, TextureFormat format, bool) override;
-	void ResizeFrameBuffer(FrameBufferHandle handle, glm::uvec2 resolution) override;
+	FrameBufferHandle CreateFrameBuffer(glm::uvec2 resolution, TextureFormat format) override;
 	glm::uvec2 GetFrameBufferResolution(FrameBufferHandle handle) override;
+	void SetFrameBufferResolution(FrameBufferHandle handle, glm::uvec2 resolution) override;
 
-	TextureHandle CreateTexture(const Image2D* image, uint32_t mipLevels = 1) override;
-	void LoadTexture(TextureHandle handle, const Image2D* image) override;
-	void SetTextureFiltering(
-	    TextureHandle handle,
-	    TextureFiltering minFilter,
-	    TextureFiltering magFilter
-	) override;
-	void SetTextureWrap(
-	    TextureHandle handle,
-	    TextureWrap wrapU,
-	    TextureWrap wrapV,
-	    TextureWrap wrapW
-	) override;
-	glm::ivec2 GetTextureResolution(TextureHandle handle) override;
-	void BindTexture(
-	    MaterialHandle materialHandle,
-	    const std::string& name,
-	    TextureHandle textureHandle,
-	    uint32_t index
-	) override;
-	void BindTexture(
-	    ComputeProgramHandle computeProgramHandle,
-	    const std::string& name,
-	    TextureHandle textureHandle,
-	    uint32_t index
-	) override;
+	TextureHandle CreateTexture(const Image2D* image) override;
+	void UpdateTexture(TextureHandle handle, const Image2D* image) override;
+	glm::uvec2 GetTextureResolution(TextureHandle handle) override;
+	void SetTextureFiltering(TextureHandle handle, TextureFiltering minFilter, TextureFiltering magFilter) override;
+	void SetTextureWrap(TextureHandle handle, TextureWrap wrapU, TextureWrap wrapV, TextureWrap wrapW) override;
 
-	ShaderStorageBufferHandle
-	CreateShaderStorageBuffer(const uint8_t* data, uint32_t size) override;
-	void LoadShaderStorageBuffer(
-	    ShaderStorageBufferHandle handle,
-	    const uint8_t* data,
-	    uint32_t size
-	) override;
-	uint32_t GetShaderStorageBufferSize(ShaderStorageBufferHandle handle) override;
-	std::vector<uint8_t> GetShaderStorageBufferData(
-	    ShaderStorageBufferHandle handle,
-	    uint32_t offset,
-	    uint32_t size
-	) override;
-
-	UniformBufferHandle CreateUniformBuffer(const uint8_t* data, uint32_t size) override;
-	void LoadUniformBuffer(UniformBufferHandle handle, const uint8_t* data, uint32_t size) override;
-	void LoadUniformBuffer(
-	    MaterialHandle handle,
-	    const std::string& name,
-	    const void* data,
-	    size_t size
-	) override;
+	BufferHandle CreateBuffer(BufferType type, size_t size) override;
+	BufferHandle CreateBuffer(BufferType type, std::span<const std::byte> data) override;
+	void UpdateBuffer(BufferHandle handle, std::span<const std::byte>, size_t offset = 0) override;
+	size_t GetBufferSize(BufferHandle handle) override;
+	std::vector<std::byte> ReadBuffer(BufferHandle handle, MemoryExtent extent) override;
 
 	MaterialHandle CreateMaterial(const IMaterial* materialInfo) override;
+	ComputeProgramHandle CreateComputeProgram(const IComputeProgram* computeInfo) override;
 
-	ComputeProgramHandle CreateComputeProgram(const char* source) override;
-	void
-	DispatchComputeProgram(ComputeProgramHandle handle, int32_t x, int32_t y, int32_t z) override;
+	void DrawMesh(DrawRequest request) override;
+	void DispatchComputeProgram(DispatchRequest request) override;
+
+	void BindTexture(
+	    MaterialHandle materialHandle,
+	    std::string_view name,
+	    TextureHandle textureHandle,
+	    uint32_t arrayIndex = 0
+	) override;
+	void BindTexture(
+	    ComputeProgramHandle programHandle,
+	    std::string_view name,
+	    TextureHandle textureHandle,
+	    uint32_t arrayIndex = 0
+	) override;
+	void BindBuffer(
+	    MaterialHandle materialHandle,
+	    std::string_view name,
+	    BufferHandle bufferHandle,
+	    MemoryExtent range = {}
+	) override;
+	void BindBuffer(
+	    ComputeProgramHandle programHandle,
+	    std::string_view name,
+	    BufferHandle bufferHandle,
+	    MemoryExtent range = {}
+	) override;
 
 	void WaitIdle() override;
+
+	size_t GetUniformBufferOffsetAlignment() const override;
+	size_t GetStorageBufferOffsetAlignment() const override;
 
 	GLuint GetInternalTextureID(TextureHandle handle);
 	GLuint GetInternalFrameBufferColorAttachmentID(FrameBufferHandle handle);

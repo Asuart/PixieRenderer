@@ -65,38 +65,26 @@ class ResourceManagerOpenGL : public IResourceManager {
 	}
 
 	template <typename... Args>
-	ShaderStorageBufferHandle CreateShaderStorageBuffer(Args&&... args) {
-		uint32_t index = static_cast<uint32_t>(m_shaderStorageBuffers.size());
-		m_shaderStorageBuffers.emplace_back();
-		m_shaderStorageBuffers.back().resource = std::make_unique<OpenGLBuffer>(
+	BufferHandle CreateBuffer(Args&&... args) {
+		uint32_t index = static_cast<uint32_t>(m_buffers.size());
+		m_buffers.emplace_back();
+		m_buffers.back().resource = std::make_unique<OpenGLBuffer>(
 		    std::forward<Args>(args)...
 		);
-		m_shaderStorageBuffers.back().refCount = 0;
-		uint64_t id = MakeId(ResourceType::ShaderStorageBuffer, index);
-		return ShaderStorageBufferHandle(this, id);
-	}
-
-	template <typename... Args> UniformBufferHandle CreateUniformBuffer(Args&&... args) {
-		uint32_t index = static_cast<uint32_t>(m_uniformBuffers.size());
-		m_uniformBuffers.emplace_back();
-		m_uniformBuffers.back().resource = std::make_unique<OpenGLBuffer>(
-		    std::forward<Args>(args)...
-		);
-		m_uniformBuffers.back().refCount = 0;
-		uint64_t id = MakeId(ResourceType::UniformBuffer, index);
-		return UniformBufferHandle(this, id);
+		m_buffers.back().refCount = 0;
+		uint64_t id = MakeId(ResourceType::Buffer, index);
+		return BufferHandle(this, id);
 	}
 
 	void AddRef(uint64_t id) override;
 	void Release(uint64_t id) override;
 
-	OpenGLTexture& GetTextureEntry(TextureHandle handle);
-	OpenGLMesh& GetMeshEntry(MeshHandle handle);
-	OpenGLFrameBuffer& GetFrameBufferEntry(FrameBufferHandle handle);
-	OpenGLGraphicsProgram& GetMaterialEntry(MaterialHandle handle);
-	OpenGLComputeProgram& GetComputeShaderEntry(ComputeProgramHandle handle);
-	OpenGLBuffer& GetShaderStorageBufferEntry(ShaderStorageBufferHandle handle);
-	OpenGLBuffer& GetUniformBufferEntry(UniformBufferHandle handle);
+	OpenGLTexture& GetTexture(TextureHandle handle);
+	OpenGLMesh& GetMesh(MeshHandle handle);
+	OpenGLFrameBuffer& GetFrameBuffer(FrameBufferHandle handle);
+	OpenGLGraphicsProgram& GetMaterial(MaterialHandle handle);
+	OpenGLComputeProgram& GetComputeProgram(ComputeProgramHandle handle);
+	OpenGLBuffer& GetBuffer(BufferHandle handle);
 
 	std::vector<ResourceEntry<OpenGLMesh>>& GetMeshes() {
 		return m_meshes;
@@ -112,8 +100,7 @@ class ResourceManagerOpenGL : public IResourceManager {
 	std::vector<ResourceEntry<OpenGLFrameBuffer>> m_frameBuffers;
 	std::vector<ResourceEntry<OpenGLGraphicsProgram>> m_materials;
 	std::vector<ResourceEntry<OpenGLComputeProgram>> m_computeShaders;
-	std::vector<ResourceEntry<OpenGLBuffer>> m_shaderStorageBuffers;
-	std::vector<ResourceEntry<OpenGLBuffer>> m_uniformBuffers;
+	std::vector<ResourceEntry<OpenGLBuffer>> m_buffers;
 };
 
 } // namespace PixieRenderer

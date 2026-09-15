@@ -30,8 +30,8 @@ void ResourceManagerVulkan::AddRef(uint64_t id) {
 			++m_uniformBuffers[index].refCount;
 		break;
 	case ResourceType::ShaderStorageBuffer:
-		if (index < m_shaderStorageBuffers.size() && m_shaderStorageBuffers[index].resource)
-			++m_shaderStorageBuffers[index].refCount;
+		if (index < m_buffers.size() && m_buffers[index].resource)
+			++m_buffers[index].refCount;
 		break;
 	case ResourceType::FrameBuffer:
 		if (index < m_frameBuffers.size() && m_frameBuffers[index].resource)
@@ -81,9 +81,9 @@ void ResourceManagerVulkan::Release(uint64_t id) {
 		}
 		break;
 	case ResourceType::ShaderStorageBuffer:
-		if (index < m_shaderStorageBuffers.size() && m_shaderStorageBuffers[index].resource) {
-			if (--m_shaderStorageBuffers[index].refCount == 0) {
-				m_shaderStorageBuffers[index].resource.reset();
+		if (index < m_buffers.size() && m_buffers[index].resource) {
+			if (--m_buffers[index].refCount == 0) {
+				m_buffers[index].resource.reset();
 			}
 		}
 		break;
@@ -126,7 +126,7 @@ VulkanBuffer& ResourceManagerVulkan::GetUniformBufferEntry(UniformBufferHandle h
 
 VulkanBuffer& ResourceManagerVulkan::GetShaderStorageBufferEntry(ShaderStorageBufferHandle handle) {
 	auto [type, index] = DecodeId(handle.GetId());
-	return *m_shaderStorageBuffers[index].resource;
+	return *m_buffers[index].resource;
 }
 
 VulkanFrameBuffer& ResourceManagerVulkan::GetFrameBufferEntry(FrameBufferHandle handle) {
