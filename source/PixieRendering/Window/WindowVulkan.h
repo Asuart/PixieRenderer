@@ -12,6 +12,8 @@ class WindowVulkan : public IWindow {
 	WindowVulkan(std::string_view name, glm::ivec2 resolution);
 	~WindowVulkan();
 
+	RenderAPI GetRenderAPI() const override;
+
 	std::vector<const char*> GetRequiredExtensions();
 	void CreateSurface(VkInstance vkInstance, VkSurfaceKHR& vkSurface);
 

@@ -51,7 +51,9 @@ void VulkanComputeProgram::Dispatch(
     uint32_t frameIndex,
     uint32_t x,
     uint32_t y,
-    uint32_t z
+    uint32_t z,
+    const void* pushData,
+    uint32_t pushSize
 ) {
 	vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeline);
 
@@ -69,6 +71,10 @@ void VulkanComputeProgram::Dispatch(
 	    0,
 	    nullptr
 	);
+
+	if (pushSize > 0) {
+		vkCmdPushConstants(cmdBuf, m_pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, pushSize, pushData);
+	}
 
 	vkCmdDispatch(cmdBuf, x, y, z);
 }

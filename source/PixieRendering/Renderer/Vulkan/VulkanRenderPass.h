@@ -3,6 +3,8 @@
 
 #include <vulkan/vulkan.h>
 
+#include "PixieRendering/Renderer/Requests.h"
+
 #include "PixieRendering/ResourceManager/ResourceHandles.h"
 #include "PixieRendering/ResourceManager/IResourceManager.h"
 
@@ -15,9 +17,7 @@ namespace PixieRenderer {
 struct RenderRequest {
 	MeshHandle meshHandle;
 	MaterialHandle materialHandle;
-
-	static constexpr uint32_t kPushConstantCapacity = 128;
-	std::array<uint8_t, kPushConstantCapacity> pushConstants{};
+	std::array<uint8_t, cMaxRequestDataSize> pushConstants{};
 	uint32_t pushConstantsSize = 0;
 };
 

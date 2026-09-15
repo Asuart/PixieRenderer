@@ -29,10 +29,6 @@ bool IWindow::GetShouldClose() const {
 	return glfwWindowShouldClose(m_window);
 }
 
-RenderAPI IWindow::GetRenderAPI() const {
-	return m_renderer->GetRenderAPI();
-}
-
 GLFWwindow* IWindow::GetGLFWWindow() const {
 	return m_window;
 }

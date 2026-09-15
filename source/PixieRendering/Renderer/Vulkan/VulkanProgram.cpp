@@ -1,5 +1,5 @@
-#include "PixieRendering/pch.h"
 #include "VulkanProgram.h"
+#include "PixieRendering/pch.h"
 
 #include "VulkanConfig.h"
 #include "VulkanDevice.h"
@@ -9,24 +9,8 @@ namespace PixieRenderer {
 VulkanProgram::VulkanProgram(VulkanDevice& device) : m_device(device) {
 }
 
-void VulkanProgram::Init(const BindingsInfo& bindingsInfo) {
-	m_bindingsInfo = bindingsInfo;
-	for (const auto& binding : m_bindingsInfo.bindings) {
-		m_nameToBinding[binding.name] = binding.binding;
-	}
-
-	CreateDescriptorSetLayout();
-	CreateDescriptorPool();
-	AllocateDescriptorSets();
-	CreateUniformBuffers();
-	CreatePipelineLayout();
-	UpdateDescriptorSetsForUniforms();
-}
-
 VulkanProgram::~VulkanProgram() {
 	VkDevice device = m_device.GetDevice();
-
-	m_uniformBuffers.clear();
 
 	if (m_descriptorPool != VK_NULL_HANDLE) {
 		vkDestroyDescriptorPool(device, m_descriptorPool, nullptr);
@@ -37,6 +21,18 @@ VulkanProgram::~VulkanProgram() {
 	if (m_pipelineLayout != VK_NULL_HANDLE) {
 		vkDestroyPipelineLayout(device, m_pipelineLayout, nullptr);
 	}
+}
+
+void VulkanProgram::Init(const BindingsInfo& bindingsInfo) {
+	m_bindingsInfo = bindingsInfo;
+	for (const ShaderBinding& b : m_bindingsInfo.bindings) {
+		m_bindingsByName[b.name] = b;
+	}
+
+	CreateDescriptorSetLayout();
+	CreateDescriptorPool();
+	AllocateDescriptorSets();
+	CreatePipelineLayout();
 }
 
 VkDescriptorSetLayout VulkanProgram::GetDescriptorSetLayout() const {
@@ -51,85 +47,91 @@ const std::vector<VkDescriptorSet>& VulkanProgram::GetDescriptorSets() const {
 	return m_descriptorSets;
 }
 
-const std::unordered_map<uint32_t, std::vector<VulkanBuffer>>& VulkanProgram::GetUniformBuffers(
-) const {
-	return m_uniformBuffers;
+uint32_t VulkanProgram::GetBindingIndex(std::string_view name) const {
+	auto it = m_bindingsByName.find(std::string(name));
+	if (it == m_bindingsByName.end()) {
+		throw std::runtime_error("Binding not found: " + std::string(name));
+	}
+	return it->second.binding;
 }
 
-VulkanBuffer* VulkanProgram::GetUniformBuffer(const std::string& name, uint32_t frameIndex) {
-	auto it = m_nameToBinding.find(name);
-	if (it == m_nameToBinding.end()) {
-		throw std::runtime_error("Uniform binding not found: " + name);
+VkDescriptorType VulkanProgram::GetDescriptorType(std::string_view name) const {
+	auto it = m_bindingsByName.find(std::string(name));
+	if (it == m_bindingsByName.end()) {
+		throw std::runtime_error("Binding not found: " + std::string(name));
 	}
-	uint32_t binding = it->second;
-	auto bufIt = m_uniformBuffers.find(binding);
-	if (bufIt == m_uniformBuffers.end()) {
-		throw std::runtime_error("Uniform buffer not found for binding");
-	}
-	auto& buffers = bufIt->second;
-	if (frameIndex >= buffers.size()) {
+	return static_cast<VkDescriptorType>(it->second.type);
+}
+
+void VulkanProgram::BindBuffer(
+    std::string_view name,
+    VkBuffer buffer,
+    VkDeviceSize offset,
+    VkDeviceSize range,
+    uint32_t frameIndex
+) {
+	if (frameIndex >= m_descriptorSets.size()) {
 		throw std::runtime_error("Frame index out of range");
 	}
-	return &buffers[frameIndex];
-}
-
-uint32_t VulkanProgram::GetBindingIndex(const std::string& name) const {
-	auto it = m_nameToBinding.find(name);
-	if (it == m_nameToBinding.end()) {
-		throw std::runtime_error("Binding not found: " + name);
+	auto it = m_bindingsByName.find(std::string(name));
+	if (it == m_bindingsByName.end()) {
+		return;
 	}
-	return it->second;
-}
 
-void VulkanProgram::BindTexture(
-    const std::string& name,
-    TextureHandle /*handle*/,
-    VulkanTexture& texture,
-    uint32_t frameIndex,
-    uint32_t index
-) {
-	VkDevice device = m_device.GetDevice();
-	uint32_t binding = GetBindingIndex(name);
-
-	VkDescriptorImageInfo imageInfo{};
-	imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	imageInfo.imageView = texture.GetImageView();
-	imageInfo.sampler = texture.GetSampler();
+	VkDescriptorBufferInfo info{};
+	info.buffer = buffer;
+	info.offset = offset;
+	info.range = range == 0 ? VK_WHOLE_SIZE : range;
 
 	VkWriteDescriptorSet write{};
 	write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	write.dstSet = m_descriptorSets[frameIndex];
-	write.dstBinding = binding;
-	write.dstArrayElement = index;
+	write.dstBinding = it->second.binding;
+	write.dstArrayElement = 0;
 	write.descriptorCount = 1;
-	write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	write.pImageInfo = &imageInfo;
+	write.descriptorType = static_cast<VkDescriptorType>(it->second.type);
+	write.pBufferInfo = &info;
 
-	vkUpdateDescriptorSets(device, 1, &write, 0, nullptr);
+	vkUpdateDescriptorSets(m_device.GetDevice(), 1, &write, 0, nullptr);
 }
 
-void VulkanProgram::UpdateUniformBuffer(
-    uint32_t binding,
+void VulkanProgram::BindTexture(
+    std::string_view name,
+    VulkanTexture& texture,
     uint32_t frameIndex,
-    const void* data,
-    size_t size,
-    size_t offset
+    uint32_t arrayIndex
 ) {
-	auto it = m_uniformBuffers.find(binding);
-	if (it == m_uniformBuffers.end()) {
-		throw std::runtime_error("Uniform buffer binding not found");
-	}
-	auto& buffers = it->second;
-	if (frameIndex >= buffers.size()) {
+	if (frameIndex >= m_descriptorSets.size()) {
 		throw std::runtime_error("Frame index out of range");
 	}
-	buffers[frameIndex].LoadSubData(data, size, offset);
+	auto it = m_bindingsByName.find(std::string(name));
+	if (it == m_bindingsByName.end()) {
+		return;
+	}
+
+	VkDescriptorImageInfo info{};
+	info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	info.imageView = texture.GetImageView();
+	info.sampler = texture.GetSampler();
+
+	VkWriteDescriptorSet write{};
+	write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	write.dstSet = m_descriptorSets[frameIndex];
+	write.dstBinding = it->second.binding;
+	write.dstArrayElement = arrayIndex;
+	write.descriptorCount = 1;
+	write.descriptorType = static_cast<VkDescriptorType>(it->second.type);
+	write.pImageInfo = &info;
+
+	vkUpdateDescriptorSets(m_device.GetDevice(), 1, &write, 0, nullptr);
 }
 
 void VulkanProgram::CreateDescriptorSetLayout() {
 	VkDevice device = m_device.GetDevice();
 
 	std::vector<VkDescriptorSetLayoutBinding> layoutBindings;
+	layoutBindings.reserve(m_bindingsInfo.bindings.size());
+
 	for (const auto& b : m_bindingsInfo.bindings) {
 		VkDescriptorSetLayoutBinding binding{};
 		binding.binding = b.binding;
@@ -144,8 +146,7 @@ void VulkanProgram::CreateDescriptorSetLayout() {
 	layoutInfo.bindingCount = static_cast<uint32_t>(layoutBindings.size());
 	layoutInfo.pBindings = layoutBindings.data();
 
-	if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &m_descriptorSetLayout) !=
-	    VK_SUCCESS) {
+	if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &m_descriptorSetLayout) != VK_SUCCESS) {
 		throw std::runtime_error("Failed to create descriptor set layout");
 	}
 }
@@ -193,68 +194,6 @@ void VulkanProgram::AllocateDescriptorSets() {
 	}
 }
 
-void VulkanProgram::CreateUniformBuffers() {
-	for (const auto& b : m_bindingsInfo.bindings) {
-		if (b.type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER ||
-		    b.type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC) {
-			uint32_t binding = b.binding;
-			VkDeviceSize blockSize = b.size;
-
-			std::vector<VulkanBuffer> buffers;
-			buffers.reserve(cMaxFramesInFlight);
-			for (uint32_t frame = 0; frame < cMaxFramesInFlight; ++frame) {
-				buffers.emplace_back(
-				    m_device,
-				    blockSize,
-				    VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-				    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-				);
-			}
-			m_uniformBuffers[binding] = std::move(buffers);
-		}
-	}
-}
-
-void VulkanProgram::UpdateDescriptorSetsForUniforms() {
-	VkDevice device = m_device.GetDevice();
-
-	for (uint32_t frame = 0; frame < cMaxFramesInFlight; ++frame) {
-		std::vector<VkWriteDescriptorSet> writes;
-		std::vector<VkDescriptorBufferInfo> bufferInfos;
-		bufferInfos.reserve(m_uniformBuffers.size());
-
-		for (const auto& [binding, buffers] : m_uniformBuffers) {
-			const VulkanBuffer& buffer = buffers[frame];
-
-			VkDescriptorBufferInfo bufferInfo{};
-			bufferInfo.buffer = buffer.GetBuffer();
-			bufferInfo.offset = 0;
-			bufferInfo.range = buffer.GetSize();
-			bufferInfos.push_back(bufferInfo);
-
-			VkWriteDescriptorSet write{};
-			write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-			write.dstSet = m_descriptorSets[frame];
-			write.dstBinding = binding;
-			write.dstArrayElement = 0;
-			write.descriptorCount = 1;
-			write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-			write.pBufferInfo = &bufferInfos.back();
-			writes.push_back(write);
-		}
-
-		if (!writes.empty()) {
-			vkUpdateDescriptorSets(
-			    device,
-			    static_cast<uint32_t>(writes.size()),
-			    writes.data(),
-			    0,
-			    nullptr
-			);
-		}
-	}
-}
-
 void VulkanProgram::CreatePipelineLayout() {
 	VkDevice device = m_device.GetDevice();
 
@@ -263,10 +202,9 @@ void VulkanProgram::CreatePipelineLayout() {
 	pipelineLayoutInfo.setLayoutCount = 1;
 	pipelineLayoutInfo.pSetLayouts = &m_descriptorSetLayout;
 
-	if (m_bindingsInfo.pushConstantSize > 0) {
-		VkPushConstantRange pushRange{};
-		pushRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT |
-		                       VK_SHADER_STAGE_COMPUTE_BIT;
+	VkPushConstantRange pushRange{};
+	if (m_bindingsInfo.pushConstantSize > 0 && m_bindingsInfo.pushConstantStages != 0) {
+		pushRange.stageFlags = m_bindingsInfo.pushConstantStages;
 		pushRange.offset = 0;
 		pushRange.size = m_bindingsInfo.pushConstantSize;
 
@@ -274,8 +212,7 @@ void VulkanProgram::CreatePipelineLayout() {
 		pipelineLayoutInfo.pPushConstantRanges = &pushRange;
 	}
 
-	if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &m_pipelineLayout) !=
-	    VK_SUCCESS) {
+	if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &m_pipelineLayout) != VK_SUCCESS) {
 		throw std::runtime_error("Failed to create pipeline layout");
 	}
 }

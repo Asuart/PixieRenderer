@@ -1,12 +1,11 @@
-#include "PixieRendering/pch.h"
 #include "WindowOpenGL.h"
+#include "PixieRendering/pch.h"
 
 #include "PixieRendering/Renderer/OpenGL/RendererOpenGL.h"
 
 namespace PixieRenderer {
 
-WindowOpenGL::WindowOpenGL(std::string_view name, glm::ivec2 resolution)
-    : IWindow(name, resolution) {
+WindowOpenGL::WindowOpenGL(std::string_view name, glm::ivec2 resolution) : IWindow(name, resolution) {
 
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
@@ -36,6 +35,10 @@ WindowOpenGL::~WindowOpenGL() {
 	if (m_window) {
 		glfwDestroyWindow(m_window);
 	}
+}
+
+RenderAPI WindowOpenGL::GetRenderAPI() const {
+	return RenderAPI::OpenGL;
 }
 
 } // namespace PixieRenderer

@@ -17,7 +17,7 @@ void ResourceManagerVulkan::AddRef(uint64_t id) {
 		if (index < m_meshes.size() && m_meshes[index].resource)
 			++m_meshes[index].refCount;
 		break;
-	case ResourceType::IMaterial:
+	case ResourceType::Material:
 		if (index < m_graphicsPrograms.size() && m_graphicsPrograms[index].resource)
 			++m_graphicsPrograms[index].refCount;
 		break;
@@ -25,11 +25,7 @@ void ResourceManagerVulkan::AddRef(uint64_t id) {
 		if (index < m_computePrograms.size() && m_computePrograms[index].resource)
 			++m_computePrograms[index].refCount;
 		break;
-	case ResourceType::UniformBuffer:
-		if (index < m_uniformBuffers.size() && m_uniformBuffers[index].resource)
-			++m_uniformBuffers[index].refCount;
-		break;
-	case ResourceType::ShaderStorageBuffer:
+	case ResourceType::Buffer:
 		if (index < m_buffers.size() && m_buffers[index].resource)
 			++m_buffers[index].refCount;
 		break;
@@ -59,7 +55,7 @@ void ResourceManagerVulkan::Release(uint64_t id) {
 			}
 		}
 		break;
-	case ResourceType::IMaterial:
+	case ResourceType::Material:
 		if (index < m_graphicsPrograms.size() && m_graphicsPrograms[index].resource) {
 			if (--m_graphicsPrograms[index].refCount == 0) {
 				m_graphicsPrograms[index].resource.reset();
@@ -73,14 +69,7 @@ void ResourceManagerVulkan::Release(uint64_t id) {
 			}
 		}
 		break;
-	case ResourceType::UniformBuffer:
-		if (index < m_uniformBuffers.size() && m_uniformBuffers[index].resource) {
-			if (--m_uniformBuffers[index].refCount == 0) {
-				m_uniformBuffers[index].resource.reset();
-			}
-		}
-		break;
-	case ResourceType::ShaderStorageBuffer:
+	case ResourceType::Buffer:
 		if (index < m_buffers.size() && m_buffers[index].resource) {
 			if (--m_buffers[index].refCount == 0) {
 				m_buffers[index].resource.reset();
@@ -99,37 +88,32 @@ void ResourceManagerVulkan::Release(uint64_t id) {
 	}
 }
 
-VulkanTexture& ResourceManagerVulkan::GetTextureEntry(TextureHandle handle) {
+VulkanTexture& ResourceManagerVulkan::GetTexture(TextureHandle handle) {
 	auto [type, index] = DecodeId(handle.GetId());
 	return *m_textures[index].resource;
 }
 
-VulkanMesh& ResourceManagerVulkan::GetMeshEntry(MeshHandle handle) {
+VulkanMesh& ResourceManagerVulkan::GetMesh(MeshHandle handle) {
 	auto [type, index] = DecodeId(handle.GetId());
 	return *m_meshes[index].resource;
 }
 
-VulkanGraphicsProgram& ResourceManagerVulkan::GetGraphicsProgramEntry(MaterialHandle handle) {
+VulkanGraphicsProgram& ResourceManagerVulkan::GetGraphicsProgram(MaterialHandle handle) {
 	auto [type, index] = DecodeId(handle.GetId());
 	return *m_graphicsPrograms[index].resource;
 }
 
-VulkanComputeProgram& ResourceManagerVulkan::GetComputeProgramEntry(ComputeProgramHandle handle) {
+VulkanComputeProgram& ResourceManagerVulkan::GetComputeProgram(ComputeProgramHandle handle) {
 	auto [type, index] = DecodeId(handle.GetId());
 	return *m_computePrograms[index].resource;
 }
 
-VulkanBuffer& ResourceManagerVulkan::GetUniformBufferEntry(UniformBufferHandle handle) {
-	auto [type, index] = DecodeId(handle.GetId());
-	return *m_uniformBuffers[index].resource;
-}
-
-VulkanBuffer& ResourceManagerVulkan::GetShaderStorageBufferEntry(ShaderStorageBufferHandle handle) {
+VulkanBuffer& ResourceManagerVulkan::GetBuffer(BufferHandle handle) {
 	auto [type, index] = DecodeId(handle.GetId());
 	return *m_buffers[index].resource;
 }
 
-VulkanFrameBuffer& ResourceManagerVulkan::GetFrameBufferEntry(FrameBufferHandle handle) {
+VulkanFrameBuffer& ResourceManagerVulkan::GetFrameBuffer(FrameBufferHandle handle) {
 	auto [type, index] = DecodeId(handle.GetId());
 	return *m_frameBuffers[index].resource;
 }

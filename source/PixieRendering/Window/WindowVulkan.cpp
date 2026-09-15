@@ -26,6 +26,10 @@ WindowVulkan::~WindowVulkan() {
 	glfwDestroyWindow(m_window);
 }
 
+RenderAPI WindowVulkan::GetRenderAPI() const {
+	return RenderAPI::Vulkan;
+}
+
 std::vector<const char*> WindowVulkan::GetRequiredExtensions() {
 	uint32_t extensionCount = 0;
 	const char** rawExtensions = glfwGetRequiredInstanceExtensions(&extensionCount);

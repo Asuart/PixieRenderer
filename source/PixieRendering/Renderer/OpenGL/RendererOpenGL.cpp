@@ -31,7 +31,7 @@ GLuint ResolveBufferBinding(GLuint programId, GLenum target, const std::string& 
 
 } // namespace
 
-RendererOpenGL::RendererOpenGL(IWindow* mainWindow) {
+RendererOpenGL::RendererOpenGL(IWindow*) {
 	if (!gladLoadGL()) {
 		std::cerr << "GLAD initialization failed\n";
 		exit(2);
@@ -57,20 +57,30 @@ void RendererOpenGL::EndFrame() {
 	assert(m_viewportStates.empty() && "Unbalanced BindFrameBuffer/BindDefaultFrameBuffer");
 }
 
-void RendererOpenGL::BindDefaultFrameBuffer() {
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	RestoreViewportState();
+void RendererOpenGL::BeginRenderPass(FrameBufferHandle handle) {
+	if (m_currentRenderPassOpen) {
+		EndRenderPass();
+	}
+
+	m_currentRenderPassOpen = true;
+
+	if (handle) {
+		OpenGLFrameBuffer& fb = m_resourceManager.GetFrameBuffer(handle);
+		StoreViewportState();
+		fb.Bind();
+		fb.ResizeViewport();
+	} else {
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		RestoreViewportState();
+	}
 }
 
-void RendererOpenGL::BindFrameBuffer(FrameBufferHandle handle) {
-	if (!handle) {
-		BindDefaultFrameBuffer();
-		return;
-	}
-	OpenGLFrameBuffer& frameBufferEntry = m_resourceManager.GetFrameBuffer(handle);
-	StoreViewportState();
-	frameBufferEntry.Bind();
-	frameBufferEntry.ResizeViewport();
+void RendererOpenGL::EndRenderPass() {
+	RestoreViewportState();
+	m_currentRenderPassOpen = false;
+}
+
+void RendererOpenGL::SetRenderResolution(glm::uvec2 /*resolution*/) {
 }
 
 void RendererOpenGL::SetViewport(ScreenRect rect) {

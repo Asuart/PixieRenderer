@@ -13,7 +13,15 @@ class VulkanComputeProgram : public VulkanProgram {
 	VulkanComputeProgram(VulkanDevice& device, const std::string& source);
 	~VulkanComputeProgram() override;
 
-	void Dispatch(VkCommandBuffer cmdBuf, uint32_t frameIndex, uint32_t x, uint32_t y, uint32_t z);
+	void Dispatch(
+	    VkCommandBuffer cmdBuf,
+	    uint32_t frameIndex,
+	    uint32_t x,
+	    uint32_t y,
+	    uint32_t z,
+	    const void* pushData,
+	    uint32_t pushSize
+	);
 
 	VkPipeline GetPipeline() const;
 

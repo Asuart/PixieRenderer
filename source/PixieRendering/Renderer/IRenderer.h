@@ -1,5 +1,4 @@
 #pragma once
-#include <span>
 #include <string_view>
 
 #include "PixieRendering/Buffer/BufferTypes.h"
@@ -8,6 +7,7 @@
 #include "PixieRendering/Material/IMaterial.h"
 #include "PixieRendering/Mesh/Mesh.h"
 #include "PixieRendering/ResourceManager/ResourceHandles.h"
+#include "Requests.h"
 
 namespace PixieRenderer {
 
@@ -21,32 +21,17 @@ struct ScreenRect {
 	glm::uvec2 size = { 0, 0 };
 };
 
-struct DrawRequest {
-	MaterialHandle material;
-	MeshHandle mesh;
-	std::span<const std::byte> inlineData{};
-};
-
-struct DispatchRequest {
-	ComputeProgramHandle program;
-	uint32_t x = 1;
-	uint32_t y = 1;
-	uint32_t z = 1;
-	std::span<const std::byte> inlineData{};
-};
-
 class IRenderer {
   public:
-	static constexpr size_t cMaxInlineDataSize = 128;
-
 	virtual ~IRenderer() = default;
 
 	virtual bool BeginFrame() = 0;
 	virtual void EndFrame() = 0;
 
-	virtual void BindDefaultFrameBuffer() = 0;
-	virtual void BindFrameBuffer(FrameBufferHandle handle) = 0;
+	virtual void BeginRenderPass(FrameBufferHandle handle = FrameBufferHandle()) = 0;
+	virtual void EndRenderPass() = 0;
 
+	virtual void SetRenderResolution(glm::uvec2 resolution) = 0;
 	virtual void SetViewport(ScreenRect rect) = 0;
 	virtual void SetScissor(ScreenRect rect) = 0;
 

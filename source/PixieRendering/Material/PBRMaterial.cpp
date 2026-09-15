@@ -223,36 +223,27 @@ void PBRMaterial::Bind(IRenderer* renderer) {
 		float roughness;
 		glm::vec2 _pad;
 	} props{};
-
 	props.albedo = glm::vec4(m_albedo, 0.0f);
 	props.metallic = m_metallic;
 	props.roughness = m_roughness;
 
-	renderer->LoadUniformBuffer(m_handle, "MaterialUBO", &props, sizeof(props));
+	const auto bytes = std::as_bytes(std::span{ &props, 1 });
 
-	if (m_albedoTexture) {
-		renderer->BindTexture(m_handle, "albedoTexture", m_albedoTexture, 0);
+	if (!m_uniformBuffer) {
+		m_uniformBuffer = renderer->CreateBuffer(BufferType::Uniform, bytes);
 	} else {
-		throw "Nothing to bind?";
+		renderer->UpdateBuffer(m_uniformBuffer, bytes);
 	}
+	renderer->BindBuffer(m_handle, "MaterialUBO", m_uniformBuffer);
 
-    if (m_metallicTexture) {
-		renderer->BindTexture(m_handle, "metallicTexture", m_metallicTexture, 0);
-	} else {
-		throw "Nothing to bind?";
-	}
-
-    if (m_roughnessTexture) {
-		renderer->BindTexture(m_handle, "roughnessTexture", m_roughnessTexture, 0);
-	} else {
-		throw "Nothing to bind?";
-	}
-
-    if (m_normalTexture) {
-		renderer->BindTexture(m_handle, "normalTexture", m_normalTexture, 0);
-	} else {
-		throw "Nothing to bind?";
-	}
+	if (m_albedoTexture)
+		renderer->BindTexture(m_handle, "albedoTexture", m_albedoTexture);
+	if (m_metallicTexture)
+		renderer->BindTexture(m_handle, "metallicTexture", m_metallicTexture);
+	if (m_roughnessTexture)
+		renderer->BindTexture(m_handle, "roughnessTexture", m_roughnessTexture);
+	if (m_normalTexture)
+		renderer->BindTexture(m_handle, "normalTexture", m_normalTexture);
 }
 
 } // namespace PixieRenderer

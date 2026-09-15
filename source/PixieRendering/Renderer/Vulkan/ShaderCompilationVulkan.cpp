@@ -1,5 +1,5 @@
-#include "PixieRendering/pch.h"
 #include "ShaderCompilationVulkan.h"
+#include "PixieRendering/pch.h"
 
 #include <glslang/Include/glslang_c_interface.h>
 #include <glslang/Public/resource_limits_c.h>
@@ -9,10 +9,7 @@
 
 namespace PixieRenderer {
 
-SpirVBinary ShaderCompilerVulkan::CompileShaderToSPIRV(
-    glslang_stage_t stage,
-    const char* shaderSource
-) {
+SpirVBinary ShaderCompilerVulkan::CompileShaderToSPIRV(glslang_stage_t stage, const char* shaderSource) {
 	glslang_input_t glslangShaderCreateInfo = {
 		.language = GLSLANG_SOURCE_GLSL,
 		.stage = stage,
@@ -125,6 +122,14 @@ CompiledShader ShaderCompilerVulkan::CompileShader(
 	}
 	finalInfo.pushConstantSize = std::max(vertexInfo.pushConstantSize, fragmentInfo.pushConstantSize);
 
+	finalInfo.pushConstantStages = 0;
+	if (vertexInfo.pushConstantSize > 0) {
+		finalInfo.pushConstantStages |= VK_SHADER_STAGE_VERTEX_BIT;
+	}
+	if (fragmentInfo.pushConstantSize > 0) {
+		finalInfo.pushConstantStages |= VK_SHADER_STAGE_FRAGMENT_BIT;
+	}
+
 	VkShaderModule vertShaderModule = CreateShaderModule(device, vertexBinary);
 	VkShaderModule fragShaderModule = CreateShaderModule(device, fragmentBinary);
 
@@ -143,15 +148,10 @@ CompiledShader ShaderCompilerVulkan::CompileShader(
 	fragShaderStageInfo.module = fragShaderModule;
 	fragShaderStageInfo.pName = "main";
 
-	return { { vertShaderModule, fragShaderModule },
-		     { vertShaderStageInfo, fragShaderStageInfo },
-		     finalInfo };
+	return { { vertShaderModule, fragShaderModule }, { vertShaderStageInfo, fragShaderStageInfo }, finalInfo };
 }
 
-CompiledComputeShader ShaderCompilerVulkan::CompileComputeShader(
-    VkDevice device,
-    const char* source
-) {
+CompiledComputeShader ShaderCompilerVulkan::CompileComputeShader(VkDevice device, const char* source) {
 	if (!ShaderCompiler::IsInitialized()) {
 		ShaderCompiler::Initialize();
 	}
@@ -167,6 +167,10 @@ CompiledComputeShader ShaderCompilerVulkan::CompileComputeShader(
 
 	BindingsInfo bindingInfo = ReflectSPIRV(computeBinary);
 
+	if (bindingInfo.pushConstantSize > 0) {
+		bindingInfo.pushConstantStages = VK_SHADER_STAGE_COMPUTE_BIT;
+	}
+
 	delete[] computeBinary.words;
 
 	return { shaderModule, vertShaderStageInfo, bindingInfo };
@@ -178,9 +182,7 @@ BindingsInfo ShaderCompilerVulkan::ReflectSPIRV(const SpirVBinary& binary) {
 	spirv_cross::CompilerGLSL* compiler = new spirv_cross::CompilerGLSL(binary.words, binary.size);
 	spirv_cross::ShaderResources resources = compiler->get_shader_resources();
 
-	auto add_bindings = [&](const auto& resource_list,
-	                        VkDescriptorType type,
-	                        VkShaderStageFlagBits stage) {
+	auto add_bindings = [&](const auto& resource_list, VkDescriptorType type, VkShaderStageFlagBits stage) {
 		std::vector<uint32_t> bindingIndexes{};
 
 		for (const auto& res : resource_list) {
@@ -193,8 +195,7 @@ BindingsInfo ShaderCompilerVulkan::ReflectSPIRV(const SpirVBinary& binary) {
 			auto type_id = compiler->get_type(res.type_id);
 
 			uint32_t blockSize = 0;
-			if (type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER ||
-			    type == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER) {
+			if (type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER || type == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER) {
 				auto base_type_id = compiler->get_type(res.base_type_id);
 				blockSize = static_cast<uint32_t>(compiler->get_declared_struct_size(base_type_id));
 			}
@@ -204,25 +205,16 @@ BindingsInfo ShaderCompilerVulkan::ReflectSPIRV(const SpirVBinary& binary) {
 				count = type_id.array[0];
 			}
 
-			result.bindings.push_back(
-			    ShaderBinding(res.name, type, binding, setIndex, blockSize, count, stage)
-			);
+			result.bindings.push_back(ShaderBinding(res.name, type, binding, setIndex, blockSize, count, stage));
 		}
 
 		return bindingIndexes;
 	};
 
-	result.uniformBufferBindings = add_bindings(
-	    resources.uniform_buffers,
-	    VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-	    VK_SHADER_STAGE_ALL
-	);
+	result.uniformBufferBindings =
+	    add_bindings(resources.uniform_buffers, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL);
 	add_bindings(resources.storage_buffers, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_ALL);
-	add_bindings(
-	    resources.sampled_images,
-	    VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-	    VK_SHADER_STAGE_ALL
-	);
+	add_bindings(resources.sampled_images, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_ALL);
 	add_bindings(resources.separate_images, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_ALL);
 	add_bindings(resources.separate_samplers, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_ALL);
 

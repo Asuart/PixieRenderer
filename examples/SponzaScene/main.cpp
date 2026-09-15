@@ -115,6 +115,9 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 	MaterialHandle m_meshIslandsMaterialHandle;
 	bool m_showmeshIslands = true;
 
+	BufferHandle m_cameraUBO;
+	BufferHandle m_cameraPositionUBO;
+
 	SponzaSceneApp(const std::string& scenePath)
 	    : PixieUIApplication("Sponza scene", { 1280, 720 }, RenderAPI::Vulkan, true) {
 		m_frameBuffer = m_renderer->CreateFrameBuffer({ 1280, 720 }, TextureFormat::RGBA32f);
@@ -126,6 +129,9 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 		m_meshIslandsMaterialHandle = m_renderer->CreateMaterial(&m_meshIslandsMaterial);
 
 		LoadScene(scenePath);
+
+		m_cameraUBO = m_renderer->CreateBuffer(BufferType::Uniform, sizeof(Camera));
+		m_cameraPositionUBO = m_renderer->CreateBuffer(BufferType::Uniform, sizeof(glm::vec4));
 	}
 
 	void LoadScene(const std::string& path) {
@@ -485,6 +491,7 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 		image.resolution = glm::ivec2(width, height);
 		image.format = TextureFormat::RGBA8;
 		image.pixels.resize(static_cast<size_t>(width) * height * 4);
+		image.desiredMipLevels = 13;
 		std::memcpy(image.pixels.data(), data, image.pixels.size());
 
 		if (resized.empty()) {
@@ -497,7 +504,7 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 		m_textureStats.maxWidth = std::max<size_t>(m_textureStats.maxWidth, width);
 		m_textureStats.maxHeight = std::max<size_t>(m_textureStats.maxHeight, height);
 
-		return m_renderer->CreateTexture(&image, 13);
+		return m_renderer->CreateTexture(&image);
 	}
 
 	void BeforeDrawFrame() override {
@@ -514,59 +521,46 @@ class SponzaSceneApp : public PixieApp::PixieUIApplication {
 
 		const glm::vec4 camPos = glm::vec4(glm::vec3(glm::inverse(camComp.camera.view)[3]), 1.0f);
 
-		for (size_t i = 0; i < m_materials.size(); i++) {
-			m_materials[i].Bind(m_renderer);
+		m_renderer->UpdateBuffer(m_cameraUBO, std::as_bytes(std::span{ &camComp.camera, 1 }));
+		m_renderer->UpdateBuffer(m_cameraPositionUBO, std::as_bytes(std::span{ &camPos, 1 }));
 
-			m_renderer->LoadUniformBuffer(
-			    m_materials[i].GetHandle(),
-			    "CameraUBO",
-			    &camComp.camera,
-			    sizeof(Camera)
-			);
-
-			m_renderer->LoadUniformBuffer(
-			    m_materials[i].GetHandle(),
-			    "CameraPosition",
-			    &camPos,
-			    sizeof(glm::vec4)
-			);
+		for (MaterialHandle mh : m_materialHandles) {
+			m_renderer->BindBuffer(mh, "CameraUBO", m_cameraUBO);
+			m_renderer->BindBuffer(mh, "CameraPosition", m_cameraPositionUBO);
 		}
+		m_renderer->BindBuffer(m_meshIslandsMaterialHandle, "CameraUBO", m_cameraUBO);
 
-		m_meshIslandsMaterial.Bind(m_renderer);
-		m_renderer->LoadUniformBuffer(
-		    m_meshIslandsMaterialHandle,
-		    "CameraUBO",
-		    &camComp.camera,
-		    sizeof(Camera)
-		);
+		for (auto& mat : m_materials) {
+			mat.Bind(m_renderer);
+		}
 
 		m_renderer->BeginRenderPass(m_frameBuffer);
 
 		auto view = m_registry.view<TransformComponent, MeshComponent, MaterialComponent>();
+
 		if (m_showmeshIslands) {
 			int drawIndex = 0;
 			for (auto [entity, transform, meshComp, matComp] : view.each()) {
 				struct MeshIslandPushConstants {
 					glm::mat4 model;
 					glm::vec4 color;
-				} pushConstants;
-				pushConstants.model = transform.transform;
-				pushConstants.color = MeshIslandsMaterial::MakeUniqueDebugColor(drawIndex++);
-				m_renderer->DrawMesh(
-				    meshComp.mesh,
-				    m_meshIslandsMaterialHandle,
-				    &pushConstants,
-				    sizeof(MeshIslandPushConstants)
-				);
+				} pc;
+				pc.model = transform.transform;
+				pc.color = MeshIslandsMaterial::MakeUniqueDebugColor(drawIndex++);
+
+				DrawRequest req{};
+				req.material = m_meshIslandsMaterialHandle;
+				req.mesh = meshComp.mesh;
+				req.inlineData = std::as_bytes(std::span{ &pc, 1 });
+				m_renderer->DrawMesh(req);
 			}
 		} else {
 			for (auto [entity, transform, meshComp, matComp] : view.each()) {
-				m_renderer->DrawMesh(
-				    meshComp.mesh,
-				    matComp.materialHandle,
-				    &transform.transform,
-				    sizeof(glm::mat4)
-				);
+				DrawRequest req{};
+				req.material = matComp.materialHandle;
+				req.mesh = meshComp.mesh;
+				req.inlineData = std::as_bytes(std::span{ &transform.transform, 1 });
+				m_renderer->DrawMesh(req);
 			}
 		}
 

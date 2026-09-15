@@ -43,7 +43,7 @@ class ResourceManagerVulkan : public IResourceManager {
 		m_graphicsPrograms.back().resource = std::make_unique<
 		    VulkanGraphicsProgram>(m_device, std::forward<Args>(args)...);
 		m_graphicsPrograms.back().refCount = 0;
-		uint64_t id = MakeId(ResourceType::IMaterial, index);
+		uint64_t id = MakeId(ResourceType::Material, index);
 		return MaterialHandle(this, id);
 	}
 
@@ -57,25 +57,14 @@ class ResourceManagerVulkan : public IResourceManager {
 		return ComputeProgramHandle(this, id);
 	}
 
-	template <typename... Args> UniformBufferHandle CreateUniformBuffer(Args&&... args) {
-		uint32_t index = static_cast<uint32_t>(m_uniformBuffers.size());
-		m_uniformBuffers.emplace_back();
-		m_uniformBuffers.back()
-		    .resource = std::make_unique<VulkanBuffer>(m_device, std::forward<Args>(args)...);
-		m_uniformBuffers.back().refCount = 0;
-		uint64_t id = MakeId(ResourceType::UniformBuffer, index);
-		return UniformBufferHandle(this, id);
-	}
-
-	template <typename... Args>
-	ShaderStorageBufferHandle CreateShaderStorageBuffer(Args&&... args) {
+	template <typename... Args> BufferHandle CreateBuffer(Args&&... args) {
 		uint32_t index = static_cast<uint32_t>(m_buffers.size());
 		m_buffers.emplace_back();
 		m_buffers.back()
 		    .resource = std::make_unique<VulkanBuffer>(m_device, std::forward<Args>(args)...);
 		m_buffers.back().refCount = 0;
-		uint64_t id = MakeId(ResourceType::ShaderStorageBuffer, index);
-		return ShaderStorageBufferHandle(this, id);
+		uint64_t id = MakeId(ResourceType::Buffer, index);
+		return BufferHandle(this, id);
 	}
 
 	template <typename... Args> FrameBufferHandle CreateFrameBuffer(Args&&... args) {
@@ -91,13 +80,12 @@ class ResourceManagerVulkan : public IResourceManager {
 	void AddRef(uint64_t id) override;
 	void Release(uint64_t id) override;
 
-	VulkanTexture& GetTextureEntry(TextureHandle handle);
-	VulkanMesh& GetMeshEntry(MeshHandle handle);
-	VulkanGraphicsProgram& GetGraphicsProgramEntry(MaterialHandle handle);
-	VulkanComputeProgram& GetComputeProgramEntry(ComputeProgramHandle handle);
-	VulkanBuffer& GetUniformBufferEntry(UniformBufferHandle handle);
-	VulkanBuffer& GetShaderStorageBufferEntry(ShaderStorageBufferHandle handle);
-	VulkanFrameBuffer& GetFrameBufferEntry(FrameBufferHandle handle);
+	VulkanTexture& GetTexture(TextureHandle handle);
+	VulkanMesh& GetMesh(MeshHandle handle);
+	VulkanGraphicsProgram& GetGraphicsProgram(MaterialHandle handle);
+	VulkanComputeProgram& GetComputeProgram(ComputeProgramHandle handle);
+	VulkanBuffer& GetBuffer(BufferHandle handle);
+	VulkanFrameBuffer& GetFrameBuffer(FrameBufferHandle handle);
 
 	std::vector<ResourceEntry<VulkanMesh>>& GetMeshes();
 	std::vector<ResourceEntry<VulkanGraphicsProgram>>& GetGraphicsPrograms();
@@ -109,7 +97,6 @@ class ResourceManagerVulkan : public IResourceManager {
 	std::vector<ResourceEntry<VulkanTexture>> m_textures;
 	std::vector<ResourceEntry<VulkanGraphicsProgram>> m_graphicsPrograms;
 	std::vector<ResourceEntry<VulkanComputeProgram>> m_computePrograms;
-	std::vector<ResourceEntry<VulkanBuffer>> m_uniformBuffers;
 	std::vector<ResourceEntry<VulkanBuffer>> m_buffers;
 	std::vector<ResourceEntry<VulkanFrameBuffer>> m_frameBuffers;
 };

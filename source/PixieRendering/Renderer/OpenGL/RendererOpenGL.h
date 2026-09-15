@@ -18,9 +18,10 @@ class RendererOpenGL : public IRenderer {
 	bool BeginFrame() override;
 	void EndFrame() override;
 
-	void BindDefaultFrameBuffer() override;
-	void BindFrameBuffer(FrameBufferHandle handle) override;
+	void BeginRenderPass(FrameBufferHandle handle = FrameBufferHandle()) override;
+	void EndRenderPass() override;
 
+	void SetRenderResolution(glm::uvec2 resolution) override;
 	void SetViewport(ScreenRect rect) override;
 	void SetScissor(ScreenRect rect) override;
 
@@ -86,6 +87,7 @@ class RendererOpenGL : public IRenderer {
 	glm::uvec2 m_surfaceResolution = { 0, 0 };
 	ResourceManagerOpenGL m_resourceManager = {};
 	std::vector<ViewportStateOpenGL> m_viewportStates;
+	bool m_currentRenderPassOpen = false;
 
 	void StoreViewportState();
 	void RestoreViewportState();

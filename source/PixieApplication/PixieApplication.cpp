@@ -50,8 +50,7 @@ void PixieApplication::Start() {
 		m_renderer->EndFrame();
 		GlobalTimer::StopTimer("Present");
 
-		if (m_renderer->GetRenderAPI() == RenderAPI::OpenGL)
-			m_window->SwapBuffers();
+		m_window->SwapBuffers();
 
 		GlobalTimer::StartTimer("Events");
 		UserInput::Reset();

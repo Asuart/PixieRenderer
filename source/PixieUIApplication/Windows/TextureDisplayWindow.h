@@ -1,5 +1,6 @@
 #pragma once
 #include "PixieUIApplication/UIWindow.h"
+
 #include <PixieRendering/Renderer/IRenderer.h>
 #include <PixieRendering/ResourceManager/ResourceHandles.h>
 #include <PixieUIApplication/UIImage.h>
@@ -8,16 +9,8 @@ namespace PixieUI {
 
 class TextureDisplayWindow : public UIWindow {
   public:
-	TextureDisplayWindow(
-	    UI* ui,
-	    PixieRenderer::IRenderer* renderer,
-	    PixieRenderer::TextureHandle texture
-	);
-	TextureDisplayWindow(
-	    UI* ui,
-	    PixieRenderer::IRenderer* renderer,
-	    PixieRenderer::FrameBufferHandle frameBuffer
-	);
+	TextureDisplayWindow(UI* ui, PixieRenderer::IRenderer* renderer, PixieRenderer::TextureHandle texture);
+	TextureDisplayWindow(UI* ui, PixieRenderer::IRenderer* renderer, PixieRenderer::FrameBufferHandle frameBuffer);
 	virtual ~TextureDisplayWindow();
 
 	virtual void OnBeforeDraw() override;
@@ -32,11 +25,17 @@ class TextureDisplayWindow : public UIWindow {
 	PixieRenderer::FrameBufferHandle m_targetFrameBuffer;
 	PixieRenderer::MaterialHandle m_shader;
 	PixieRenderer::MeshHandle m_screenPlane;
-	glm::uvec2 m_viewportResolution;
+	PixieRenderer::BufferHandle m_planeUBO;
+	glm::uvec2 m_viewportResolution{};
+	glm::uvec2 m_appliedResolution{};
 	UIImage* m_image = nullptr;
 	bool m_resolutionChanged = true;
 
 	float Aspect(glm::ivec2 resolution);
+
+	void CreateShader();
+	void CreateScreenPlane();
+	void UpdatePlaneUBO();
 };
 
 } // namespace PixieUI

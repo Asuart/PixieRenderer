@@ -19,8 +19,9 @@ class IWindow {
 	IRenderer* GetRenderer() const;
 	glm::ivec2 GetResolution() const;
 	bool GetShouldClose() const;
-	RenderAPI GetRenderAPI() const;
 	GLFWwindow* GetGLFWWindow() const;
+
+	virtual RenderAPI GetRenderAPI() const = 0;
 
 	virtual void SwapBuffers();
 	virtual void PollEvents();
