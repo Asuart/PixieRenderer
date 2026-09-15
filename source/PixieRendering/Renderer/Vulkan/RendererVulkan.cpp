@@ -35,15 +35,6 @@ VkMemoryPropertyFlags ToVkMemoryProps(BufferType type) {
 	}
 }
 
-VkDescriptorType ResolveDescriptorType(const BindingsInfo& info, const std::string& name) {
-	for (const ShaderBinding& b : info.bindings) {
-		if (b.name == name) {
-			return static_cast<VkDescriptorType>(b.type);
-		}
-	}
-	return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-}
-
 } // namespace
 
 RendererVulkan::RendererVulkan(IWindow* window) : m_window(window), m_resourceManager(m_device) {

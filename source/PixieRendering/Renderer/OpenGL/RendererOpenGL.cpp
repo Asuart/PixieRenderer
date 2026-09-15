@@ -22,13 +22,6 @@ GLenum ToOpenGLBufferTarget(BufferType type) {
 	}
 }
 
-GLuint ResolveBufferBinding(GLuint programId, GLenum target, const std::string& name, GLenum interface) {
-	if (target == GL_UNIFORM_BUFFER) {
-		return glGetUniformBlockIndex(programId, name.c_str());
-	}
-	return glGetProgramResourceIndex(programId, interface, name.c_str());
-}
-
 } // namespace
 
 RendererOpenGL::RendererOpenGL(IWindow*) {

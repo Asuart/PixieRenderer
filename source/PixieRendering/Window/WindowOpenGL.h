@@ -1,5 +1,6 @@
 #pragma once
 #include "IWindow.h"
+#include "PixieRendering/Renderer/RenderAPI.h"
 
 namespace PixieRenderer {
 

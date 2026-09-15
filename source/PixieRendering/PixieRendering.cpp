@@ -1,4 +1,5 @@
 #include "PixieRendering.h"
+#include "PixieRendering/pch.h"
 
 #include "Window/WindowOpenGL.h"
 #include "Window/WindowVulkan.h"
@@ -11,8 +12,9 @@ IWindow* CreateWindow(std::string_view name, glm::uvec2 resolution, RenderAPI ap
 		return new WindowOpenGL(name, resolution);
 	case RenderAPI::Vulkan:
 		return new WindowVulkan(name, resolution);
+	default:
+		return nullptr;
 	}
-	return nullptr;
 }
 
 } // namespace PixieRenderer
