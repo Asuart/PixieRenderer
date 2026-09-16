@@ -45,6 +45,13 @@ class VulkanProgram {
 	);
 
 	void BindTexture(std::string_view name, VulkanTexture& texture, uint32_t frameIndex, uint32_t arrayIndex);
+	void BindTextureView(
+	    std::string_view name,
+	    VkImageView view,
+	    VkSampler sampler,
+	    uint32_t frameIndex,
+	    uint32_t arrayIndex = 0
+	);
 
   protected:
 	VulkanDevice& m_device;

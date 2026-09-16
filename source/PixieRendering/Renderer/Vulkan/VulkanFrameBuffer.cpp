@@ -1,5 +1,5 @@
-#include "PixieRendering/pch.h"
 #include "VulkanFrameBuffer.h"
+#include "PixieRendering/pch.h"
 
 #include "VulkanDevice.h"
 #include "VulkanRenderPass.h"
@@ -12,10 +12,7 @@ VulkanFrameBuffer::VulkanFrameBuffer(
     VkFormat colorFormat,
     VulkanRenderPass* renderPass
 )
-    : m_device(parentDevice),
-      m_extent(extent),
-      m_colorFormat(colorFormat),
-      m_renderPass(renderPass) {
+    : m_device(parentDevice), m_extent(extent), m_colorFormat(colorFormat), m_renderPass(renderPass) {
 	m_depthFormat = m_device.FindDepthFormat();
 	if (m_depthFormat == VK_FORMAT_UNDEFINED) {
 		throw std::runtime_error("No suitable depth format found!");
@@ -161,7 +158,7 @@ void VulkanFrameBuffer::Transition(
     VkImageAspectFlags aspectMask
 ) {
 	m_device.TransitionImage(
-		cmdBuf,
+	    cmdBuf,
 	    m_colorImage,
 	    m_imageLayout,
 	    newLayout,
@@ -171,7 +168,7 @@ void VulkanFrameBuffer::Transition(
 	    dstStage,
 	    aspectMask,
 	    1,
-		1
+	    1
 	);
 	m_imageLayout = newLayout;
 }
@@ -184,18 +181,12 @@ void VulkanFrameBuffer::CreateImages() {
 	    VK_SAMPLE_COUNT_1_BIT,
 	    m_colorFormat,
 	    VK_IMAGE_TILING_OPTIMAL,
-	    VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+	    VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
 	    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 	    m_colorImage,
 	    m_colorImageMemory
 	);
-	m_device.CreateImageView(
-	    m_colorImage,
-	    m_colorFormat,
-	    VK_IMAGE_ASPECT_COLOR_BIT,
-	    1,
-	    m_colorImageView
-	);
+	m_device.CreateImageView(m_colorImage, m_colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1, m_colorImageView);
 
 	m_device.CreateImage(
 	    m_extent.width,
@@ -209,13 +200,7 @@ void VulkanFrameBuffer::CreateImages() {
 	    m_depthImage,
 	    m_depthImageMemory
 	);
-	m_device.CreateImageView(
-	    m_depthImage,
-	    m_depthFormat,
-	    VK_IMAGE_ASPECT_DEPTH_BIT,
-	    1,
-	    m_depthImageView
-	);
+	m_device.CreateImageView(m_depthImage, m_depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1, m_depthImageView);
 }
 
 void VulkanFrameBuffer::FreeImages() {

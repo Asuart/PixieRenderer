@@ -1,19 +1,15 @@
-#include "PixieRendering/pch.h"
 #include "VulkanTexture.h"
+#include "PixieRendering/pch.h"
 
+#include "PixieRendering/Image/ImageUtils.h"
 #include "VulkanBuffer.h"
 #include "VulkanDevice.h"
 #include "VulkanPhysicalDeviceUtils.h"
 #include "VulkanSampler.h"
-#include "PixieRendering/Image/ImageUtils.h"
 
 namespace PixieRenderer {
 
-VulkanTexture::VulkanTexture(
-    VulkanDevice& parentDevice,
-    const Image2D* image,
-    uint32_t mipmapLevels
-)
+VulkanTexture::VulkanTexture(VulkanDevice& parentDevice, const Image2D* image, uint32_t mipmapLevels)
     : m_device(parentDevice) {
 	if (image != nullptr) {
 		Load(image, mipmapLevels);
@@ -35,20 +31,8 @@ void VulkanTexture::Load(const Image2D* image, uint32_t mipmapLevels) {
 	m_height = image->resolution.y;
 	m_format = ToVkFormat(image->format);
 
-	uint32_t maxMipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(m_width, m_height)))
-	                        ) +
-	                        1;	
-	m_mipLevels = std::clamp(mipmapLevels, 1u, maxMipLevels);
-
-	VkDeviceSize imageSize = m_width * m_height * FormatToByteSize(image->format);
-	VulkanBuffer stagingBuffer(
-	    m_device,
-	    imageSize,
-	    VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-	    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-	);
-
-	stagingBuffer.Load(image->pixels.data(), imageSize);
+	uint32_t maxMip = static_cast<uint32_t>(std::floor(std::log2(std::max(m_width, m_height)))) + 1;
+	m_mipLevels = std::clamp(mipmapLevels, 1u, maxMip);
 
 	m_device.CreateImage(
 	    m_width,
@@ -57,44 +41,64 @@ void VulkanTexture::Load(const Image2D* image, uint32_t mipmapLevels) {
 	    VK_SAMPLE_COUNT_1_BIT,
 	    m_format,
 	    VK_IMAGE_TILING_OPTIMAL,
-	    VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
-	        VK_IMAGE_USAGE_SAMPLED_BIT,
+	    VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT |
+	        VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
 	    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 	    m_image,
 	    m_memory
 	);
 
-	m_device.TransitionImageSingleTime(
-	    m_image,
-	    VK_IMAGE_LAYOUT_UNDEFINED,
-	    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-	    0,
-	    VK_ACCESS_TRANSFER_WRITE_BIT,
-	    VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-	    VK_PIPELINE_STAGE_TRANSFER_BIT,
-	    VulkanPhysicalDeviceUtils::GetAspectMask(m_format),
-	    1,
-	    1
-	);
-	m_device.CopyBufferToImage(stagingBuffer.GetBuffer(), m_image, m_width, m_height);
+	const bool hasPixels = !image->pixels.empty();
 
-	m_device
-	    .CreateImageView(m_image, m_format, VK_IMAGE_ASPECT_COLOR_BIT, m_mipLevels, m_imageView);
+	if (hasPixels) {
+		VkDeviceSize imageSize = m_width * m_height * FormatToByteSize(image->format);
+		VulkanBuffer stagingBuffer(
+		    m_device,
+		    imageSize,
+		    VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+		);
+		stagingBuffer.Load(image->pixels.data(), imageSize);
 
-	GenerateMipmaps();
+		m_device.TransitionImageSingleTime(
+		    m_image,
+		    VK_IMAGE_LAYOUT_UNDEFINED,
+		    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+		    0,
+		    VK_ACCESS_TRANSFER_WRITE_BIT,
+		    VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+		    VK_PIPELINE_STAGE_TRANSFER_BIT,
+		    VK_IMAGE_ASPECT_COLOR_BIT,
+		    1,
+		    1
+		);
 
-	m_device.TransitionImageSingleTime(
-	    m_image,
-	    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-	    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-	    VK_ACCESS_TRANSFER_WRITE_BIT,
-	    VK_ACCESS_SHADER_READ_BIT,
-	    VK_PIPELINE_STAGE_TRANSFER_BIT,
-	    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-	    VK_IMAGE_ASPECT_COLOR_BIT,
-	    1,
-	    1
-	);
+		m_device.CopyBufferToImage(stagingBuffer.GetBuffer(), m_image, m_width, m_height);
+	} else {
+		m_imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	}
+
+	m_device.CreateImageView(m_image, m_format, VK_IMAGE_ASPECT_COLOR_BIT, m_mipLevels, m_imageView);
+
+	if (hasPixels && m_mipLevels > 1) {
+		GenerateMipmaps();
+	}
+
+	if (hasPixels) {
+		m_device.TransitionImageSingleTime(
+		    m_image,
+		    m_imageLayout,
+		    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+		    VK_ACCESS_TRANSFER_WRITE_BIT,
+		    VK_ACCESS_SHADER_READ_BIT,
+		    VK_PIPELINE_STAGE_TRANSFER_BIT,
+		    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+		    VK_IMAGE_ASPECT_COLOR_BIT,
+		    1,
+		    1
+		);
+		m_imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	}
 
 	if (!m_sampler) {
 		m_sampler = std::make_shared<VulkanSampler>(m_device);
@@ -155,22 +159,14 @@ void VulkanTexture::SetSampler(const std::shared_ptr<VulkanSampler>& sampler) {
 	m_sampler = sampler;
 }
 
-void VulkanTexture::SetWrap(
-    VkSamplerAddressMode wrapU,
-    VkSamplerAddressMode wrapV,
-    VkSamplerAddressMode wrapW
-) {
+void VulkanTexture::SetWrap(VkSamplerAddressMode wrapU, VkSamplerAddressMode wrapV, VkSamplerAddressMode wrapW) {
 	if (m_sampler == nullptr) {
 		return;
 	}
 	m_sampler->SetWrap(wrapU, wrapV, wrapW);
 }
 
-void VulkanTexture::SetFiltering(
-    VkFilter minFilter,
-    VkFilter magFilter,
-    VkSamplerMipmapMode mipmapMode
-) {
+void VulkanTexture::SetFiltering(VkFilter minFilter, VkFilter magFilter, VkSamplerMipmapMode mipmapMode) {
 	if (m_sampler == nullptr) {
 		return;
 	}
@@ -217,8 +213,7 @@ void VulkanTexture::GenerateMipmaps() {
 	VkFormatProperties formatProperties;
 	vkGetPhysicalDeviceFormatProperties(physicalDevice, m_format, &formatProperties);
 
-	if (!(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-	    )) {
+	if (!(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
 		throw std::runtime_error("texture image format does not support linear blitting!");
 	}
 
@@ -270,9 +265,7 @@ void VulkanTexture::GenerateMipmaps() {
 		blit.srcSubresource.baseArrayLayer = 0;
 		blit.srcSubresource.layerCount = 1;
 		blit.dstOffsets[0] = { 0, 0, 0 };
-		blit.dstOffsets[1] = { mipWidth > 1 ? mipWidth / 2 : 1,
-			                   mipHeight > 1 ? mipHeight / 2 : 1,
-			                   1 };
+		blit.dstOffsets[1] = { mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1 };
 		blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		blit.dstSubresource.mipLevel = i;
 		blit.dstSubresource.baseArrayLayer = 0;

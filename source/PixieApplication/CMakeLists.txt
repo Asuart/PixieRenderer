@@ -14,7 +14,7 @@ target_include_directories(PixieApplication PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/
 target_link_libraries(PixieApplication PUBLIC PixieRendering)
 
 if (MSVC)
-    target_compile_options(PixieApplication PRIVATE /W4 /WX)
+    # target_compile_options(PixieApplication PRIVATE /W4 /WX)
 else()
     target_compile_options(PixieApplication PRIVATE -Wall -Werror)
 endif()

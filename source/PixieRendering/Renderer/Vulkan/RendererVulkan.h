@@ -9,6 +9,7 @@
 #include <vulkan/vulkan.h>
 
 #include "PixieRendering/Material/IMaterial.h"
+#include "PixieRendering/RenderGraph/RenderGraphTypes.h"
 #include "PixieRendering/ResourceManager/ResourceManagerVulkan.h"
 #include "VulkanDevice.h"
 #include "VulkanInstance.h"
@@ -23,6 +24,10 @@ class RendererVulkan : public IRenderer {
   public:
 	RendererVulkan(IWindow* window);
 	~RendererVulkan() override;
+
+	void SetPresentOverlayHook(std::function<void()> fn) override {
+		m_overlayHook = std::move(fn);
+	}
 
 	bool BeginFrame() override;
 	void EndFrame() override;
@@ -71,6 +76,18 @@ class RendererVulkan : public IRenderer {
 	    TextureHandle textureHandle,
 	    uint32_t arrayIndex = 0
 	) override;
+	void BindTexture(
+	    MaterialHandle materialHandle,
+	    std::string_view name,
+	    FrameBufferHandle frameBufferHandle,
+	    uint32_t arrayIndex = 0
+	) override;
+	void BindTexture(
+	    ComputeProgramHandle programHandle,
+	    std::string_view name,
+	    FrameBufferHandle frameBufferHandle,
+	    uint32_t arrayIndex = 0
+	) override;
 	void BindBuffer(
 	    MaterialHandle materialHandle,
 	    std::string_view name,
@@ -89,6 +106,18 @@ class RendererVulkan : public IRenderer {
 	size_t GetUniformBufferOffsetAlignment() const override;
 	size_t GetStorageBufferOffsetAlignment() const override;
 
+	// Used by stages
+	void BeginStage(std::string_view name, StageType type) override;
+	void EndStage() override;
+
+	void UseResource(TextureHandle h, ResourceUsage usage) override;
+	void UseResource(BufferHandle h, ResourceUsage usage) override;
+	void UseResource(FrameBufferHandle h, ResourceUsage usage) override;
+
+	void SetStageRenderTarget(FrameBufferHandle fbo) override;
+	void SetStageViewport(ScreenRect rect) override;
+	void SetStageScissor(ScreenRect rect) override;
+
 	void MemoryBarriersAll();
 
 	VkInstance GetInstance() const;
@@ -103,6 +132,12 @@ class RendererVulkan : public IRenderer {
 	VkSampler GetTextureSampler(TextureHandle handle);
 	VkImageView GetFrameBufferColorImageView(FrameBufferHandle handle);
 	VkSampler GetFrameBufferSampler(FrameBufferHandle handle);
+
+	struct ResourceState {
+		VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
+		VkAccessFlags access = 0;
+		VkPipelineStageFlags stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+	};
 
   private:
 	IWindow* m_window = nullptr;
@@ -134,6 +169,13 @@ class RendererVulkan : public IRenderer {
 	VkRect2D m_presentScissor = { { 0, 0 }, { 0, 0 } };
 	bool m_presentViewportDirty = false;
 	bool m_presentScissorDirty = false;
+
+	std::string m_currentStageName;
+	StageType m_currentStageType;
+
+	std::unordered_map<uint64_t, ResourceState> m_resourceStates;
+
+	std::function<void()> m_overlayHook;
 
 	struct RenderPassKey {
 		VkFormat colorFormat;

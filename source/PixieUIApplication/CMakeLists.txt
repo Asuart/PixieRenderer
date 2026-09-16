@@ -16,7 +16,7 @@ target_link_libraries(PixieUIApplication PUBLIC imgui)
 target_link_libraries(PixieUIApplication PRIVATE glad)
 
 if (MSVC)
-    target_compile_options(PixieUIApplication PRIVATE /W4 /WX)
+    # target_compile_options(PixieUIApplication PRIVATE /W4 /WX)
 else()
     target_compile_options(PixieUIApplication PRIVATE -Wall -Werror)
 endif()

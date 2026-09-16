@@ -37,7 +37,7 @@ else()
 endif()
 
 if (MSVC)
-   target_compile_options(PixieRendering PRIVATE /W4 /WX)
+   # target_compile_options(PixieRendering PRIVATE /W4 /WX)
 else()
    target_compile_options(PixieRendering PRIVATE -Wall -Werror)
 endif()

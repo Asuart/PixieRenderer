@@ -12,6 +12,51 @@ namespace PixieRenderer {
 
 namespace {
 
+static RendererVulkan::ResourceState ToVkState(ResourceUsage u) {
+	switch (u) {
+	case ResourceUsage::Sampled:
+		return { VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			     VK_ACCESS_SHADER_READ_BIT,
+			     VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT };
+	case ResourceUsage::StorageRead:
+		return { VK_IMAGE_LAYOUT_GENERAL, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT };
+	case ResourceUsage::StorageWrite:
+		return { VK_IMAGE_LAYOUT_GENERAL, VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT };
+	case ResourceUsage::ColorAttachment:
+		return { VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+			     VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+			     VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+	case ResourceUsage::DepthAttachment:
+		return { VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+			     VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+			     VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT };
+	case ResourceUsage::CopySrc:
+		return { VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_ACCESS_TRANSFER_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT };
+	case ResourceUsage::CopyDst:
+		return { VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT };
+	case ResourceUsage::Present:
+		return { VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, 0, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT };
+	case ResourceUsage::UniformRead:
+		return { VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			     VK_ACCESS_UNIFORM_READ_BIT,
+			     VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT };
+	case ResourceUsage::VertexRead:
+		return { VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			     VK_ACCESS_SHADER_READ_BIT,
+			     VK_PIPELINE_STAGE_VERTEX_SHADER_BIT };
+	case ResourceUsage::IndexRead:
+		return { VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			     VK_ACCESS_INDEX_READ_BIT,
+			     VK_PIPELINE_STAGE_VERTEX_INPUT_BIT };
+	case ResourceUsage::IndirectRead:
+		return { VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			     VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
+			     VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT };
+	default:
+		return { VK_IMAGE_LAYOUT_GENERAL, 0, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT };
+	}
+}
+
 VkBufferUsageFlags ToVkBufferUsage(BufferType type) {
 	switch (type) {
 	case BufferType::Uniform:
@@ -216,9 +261,8 @@ void RendererVulkan::EndFrame() {
 }
 
 void RendererVulkan::BeginRenderPass(FrameBufferHandle handle) {
-	if (m_currentRenderPass) {
+	if (m_currentRenderPass)
 		EndRenderPass();
-	}
 
 	m_activeFrameBuffer = handle;
 
@@ -229,22 +273,9 @@ void RendererVulkan::BeginRenderPass(FrameBufferHandle handle) {
 	VkRect2D scissor{};
 
 	if (m_activeFrameBuffer) {
+		UseResource(m_activeFrameBuffer, ResourceUsage::ColorAttachment);
+
 		VulkanFrameBuffer& fb = m_resourceManager.GetFrameBuffer(m_activeFrameBuffer);
-
-		m_device.TransitionImage(
-		    m_commandBuffers[m_currentFrame],
-		    fb.GetColorImage(),
-		    VK_IMAGE_LAYOUT_UNDEFINED,
-		    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-		    0,
-		    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-		    VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-		    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-		    VK_IMAGE_ASPECT_COLOR_BIT,
-		    1,
-		    1
-		);
-
 		framebuffer = fb.GetFrameBuffer();
 		extent = fb.GetExtent();
 		rp = fb.GetRenderPassObject();
@@ -261,7 +292,6 @@ void RendererVulkan::BeginRenderPass(FrameBufferHandle handle) {
 		    VK_IMAGE_ASPECT_COLOR_BIT,
 		    m_nextImageIndex
 		);
-
 		framebuffer = m_swapchain->GetFrameBuffer(m_nextImageIndex);
 		extent = m_swapchain->GetExtent();
 		rp = m_presentRenderPass.get();
@@ -270,32 +300,27 @@ void RendererVulkan::BeginRenderPass(FrameBufferHandle handle) {
 	}
 
 	rp->Begin(m_commandBuffers[m_currentFrame], m_currentFrame, framebuffer, extent, viewport, scissor);
-
 	m_currentRenderPass = rp;
 	debug_isInRenderPass = true;
 }
 
 void RendererVulkan::EndRenderPass() {
-	if (!m_currentRenderPass) {
+	if (!m_currentRenderPass)
 		return;
-	}
 
 	m_currentRenderPass->Execute(m_resourceManager.GetMeshes(), m_resourceManager.GetGraphicsPrograms());
-	m_currentRenderPass->End();
 
+	if (!m_activeFrameBuffer && m_overlayHook)
+		m_overlayHook();
+
+	m_currentRenderPass->End();
 	debug_isInRenderPass = false;
 
 	if (m_activeFrameBuffer) {
-		VulkanFrameBuffer& fb = m_resourceManager.GetFrameBuffer(m_activeFrameBuffer);
-		fb.Transition(
-		    m_commandBuffers[m_currentFrame],
-		    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-		    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-		    VK_ACCESS_SHADER_READ_BIT,
-		    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-		    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-		    VK_IMAGE_ASPECT_COLOR_BIT
-		);
+		m_resourceStates[m_activeFrameBuffer.GetId()] = ResourceState{ VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			                                                           VK_ACCESS_SHADER_READ_BIT,
+			                                                           VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
+			                                                               VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT };
 	} else {
 		m_swapchain->SetImageLayout(m_nextImageIndex, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 	}
@@ -406,6 +431,7 @@ FrameBufferHandle RendererVulkan::CreateFrameBuffer(glm::uvec2 resolution, Textu
 void RendererVulkan::SetFrameBufferResolution(FrameBufferHandle handle, glm::uvec2 resolution) {
 	VulkanFrameBuffer& fb = m_resourceManager.GetFrameBuffer(handle);
 	fb.Resize({ resolution.x, resolution.y });
+	m_resourceStates.erase(handle.GetId());
 }
 
 glm::uvec2 RendererVulkan::GetFrameBufferResolution(FrameBufferHandle handle) {
@@ -524,16 +550,6 @@ void RendererVulkan::BindTexture(
 ) {
 	VulkanGraphicsProgram& program = m_resourceManager.GetGraphicsProgram(materialHandle);
 	VulkanTexture& texture = m_resourceManager.GetTexture(textureHandle);
-
-	texture.Transition(
-	    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-	    VK_ACCESS_MEMORY_READ_BIT,
-	    VK_ACCESS_SHADER_READ_BIT,
-	    VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-	    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-	    VK_IMAGE_ASPECT_COLOR_BIT
-	);
-
 	program.BindTexture(name, texture, m_currentFrame, arrayIndex);
 }
 
@@ -545,17 +561,29 @@ void RendererVulkan::BindTexture(
 ) {
 	VulkanComputeProgram& prog = m_resourceManager.GetComputeProgram(programHandle);
 	VulkanTexture& texture = m_resourceManager.GetTexture(textureHandle);
-
-	texture.Transition(
-	    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-	    VK_ACCESS_MEMORY_READ_BIT,
-	    VK_ACCESS_SHADER_READ_BIT,
-	    VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-	    VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-	    VK_IMAGE_ASPECT_COLOR_BIT
-	);
-
 	prog.BindTexture(name, texture, m_currentFrame, arrayIndex);
+}
+
+void RendererVulkan::BindTexture(
+    MaterialHandle materialHandle,
+    std::string_view name,
+    FrameBufferHandle frameBufferHandle,
+    uint32_t arrayIndex
+) {
+	VulkanGraphicsProgram& program = m_resourceManager.GetGraphicsProgram(materialHandle);
+	VulkanFrameBuffer& fb = m_resourceManager.GetFrameBuffer(frameBufferHandle);
+	program.BindTextureView(name, fb.GetColorImageView(), fb.GetSampler(), m_currentFrame, arrayIndex);
+}
+
+void RendererVulkan::BindTexture(
+    ComputeProgramHandle programHandle,
+    std::string_view name,
+    FrameBufferHandle frameBufferHandle,
+    uint32_t arrayIndex
+) {
+	VulkanComputeProgram& prog = m_resourceManager.GetComputeProgram(programHandle);
+	VulkanFrameBuffer& fb = m_resourceManager.GetFrameBuffer(frameBufferHandle);
+	prog.BindTextureView(name, fb.GetColorImageView(), fb.GetSampler(), m_currentFrame, arrayIndex);
 }
 
 void RendererVulkan::BindBuffer(
@@ -566,7 +594,6 @@ void RendererVulkan::BindBuffer(
 ) {
 	VulkanGraphicsProgram& program = m_resourceManager.GetGraphicsProgram(materialHandle);
 	VulkanBuffer& buffer = m_resourceManager.GetBuffer(bufferHandle);
-
 	program.BindBuffer(name, buffer.GetBuffer(), range.start, range.size, m_currentFrame);
 }
 
@@ -578,7 +605,6 @@ void RendererVulkan::BindBuffer(
 ) {
 	VulkanComputeProgram& program = m_resourceManager.GetComputeProgram(programHandle);
 	VulkanBuffer& buffer = m_resourceManager.GetBuffer(bufferHandle);
-
 	program.BindBuffer(name, buffer.GetBuffer(), range.start, range.size, m_currentFrame);
 }
 
@@ -596,6 +622,133 @@ size_t RendererVulkan::GetStorageBufferOffsetAlignment() const {
 	VkPhysicalDeviceProperties props{};
 	vkGetPhysicalDeviceProperties(m_device.GetPhysicalDevice(), &props);
 	return static_cast<size_t>(props.limits.minStorageBufferOffsetAlignment);
+}
+
+void RendererVulkan::BeginStage(std::string_view name, StageType type) {
+	m_currentStageName = name;
+	m_currentStageType = type;
+}
+
+void RendererVulkan::UseResource(TextureHandle h, ResourceUsage u) {
+	auto& state = m_resourceStates[h.GetId()];
+	ResourceState want = ToVkState(u);
+
+	if (state.layout == want.layout && state.access == want.access)
+		return;
+
+	VulkanTexture& tex = m_resourceManager.GetTexture(h);
+
+	VkImageMemoryBarrier b{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+	b.oldLayout = state.layout;
+	b.newLayout = want.layout;
+	b.srcAccessMask = state.access;
+	b.dstAccessMask = want.access;
+	b.image = tex.GetImage();
+	b.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+
+	vkCmdPipelineBarrier(m_commandBuffers[m_currentFrame], state.stage, want.stage, 0, 0, nullptr, 0, nullptr, 1, &b);
+
+	state = want;
+}
+
+void RendererVulkan::UseResource(FrameBufferHandle h, ResourceUsage u) {
+	if (!h)
+		return; // Present target — пропускаем
+
+	auto& state = m_resourceStates[h.GetId()];
+	ResourceState want = ToVkState(u);
+	if (state.layout == want.layout && state.access == want.access)
+		return;
+
+	VulkanFrameBuffer& fb = m_resourceManager.GetFrameBuffer(h);
+
+	VkImageMemoryBarrier b{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+	b.oldLayout = state.layout;
+	b.newLayout = want.layout;
+	b.srcAccessMask = state.access;
+	b.dstAccessMask = want.access;
+	b.image = fb.GetColorImage();
+	b.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+
+	vkCmdPipelineBarrier(m_commandBuffers[m_currentFrame], state.stage, want.stage, 0, 0, nullptr, 0, nullptr, 1, &b);
+	state = want;
+}
+
+void RendererVulkan::UseResource(BufferHandle h, ResourceUsage u) {
+	if (u != ResourceUsage::StorageRead && u != ResourceUsage::StorageWrite && u != ResourceUsage::UniformRead) {
+		return;
+	}
+
+	VulkanBuffer& buf = m_resourceManager.GetBuffer(h);
+
+	VkBufferMemoryBarrier b{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
+	b.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
+	b.dstAccessMask = (u == ResourceUsage::StorageWrite) ? VK_ACCESS_SHADER_WRITE_BIT : VK_ACCESS_SHADER_READ_BIT;
+	b.buffer = buf.GetBuffer();
+	b.offset = 0;
+	b.size = VK_WHOLE_SIZE;
+
+	vkCmdPipelineBarrier(
+	    m_commandBuffers[m_currentFrame],
+	    VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+	    VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+	    0,
+	    0,
+	    nullptr,
+	    1,
+	    &b,
+	    0,
+	    nullptr
+	);
+}
+
+void RendererVulkan::SetStageRenderTarget(FrameBufferHandle fbo) {
+	if (m_currentRenderPass) {
+		EndRenderPass();
+	}
+	BeginRenderPass(fbo);
+}
+
+void RendererVulkan::EndStage() {
+	if (m_currentRenderPass)
+		EndRenderPass();
+}
+
+void RendererVulkan::SetStageViewport(ScreenRect rect) {
+	if (!m_currentRenderPass)
+		return;
+	VkViewport vp{};
+	vp.x = float(rect.origin.x);
+	vp.y = float(rect.origin.y);
+	vp.width = float(rect.size.x);
+	vp.height = float(rect.size.y);
+	vp.minDepth = 0.f;
+	vp.maxDepth = 1.f;
+
+	if (m_activeFrameBuffer) {
+		m_resourceManager.GetFrameBuffer(m_activeFrameBuffer).SetViewport(vp);
+	} else {
+		m_presentViewport = vp;
+	}
+	vkCmdSetViewport(m_commandBuffers[m_currentFrame], 0, 1, &vp);
+}
+
+void RendererVulkan::SetStageScissor(ScreenRect rect) {
+	if (!m_currentRenderPass) {
+		return;
+	}
+	VkRect2D scissor{};
+	scissor.offset.x = rect.origin.x;
+	scissor.offset.y = rect.origin.y;
+	scissor.extent.width = rect.size.x;
+	scissor.extent.height = rect.size.y;
+
+	if (m_activeFrameBuffer) {
+		m_resourceManager.GetFrameBuffer(m_activeFrameBuffer).SetScissor(scissor);
+	} else {
+		m_presentScissor = scissor;
+	}
+	vkCmdSetScissor(m_commandBuffers[m_currentFrame], 0, 1, &scissor);
 }
 
 void RendererVulkan::MemoryBarriersAll() {

@@ -6,24 +6,21 @@
 #include "PixieRendering/Image/Image2D.h"
 #include "PixieRendering/Material/IMaterial.h"
 #include "PixieRendering/Mesh/Mesh.h"
+#include "PixieRendering/RenderGraph/RenderGraphTypes.h"
 #include "PixieRendering/ResourceManager/ResourceHandles.h"
 #include "Requests.h"
 
 namespace PixieRenderer {
 
-struct MemoryExtent {
-	size_t start;
-	size_t size;
-};
-
-struct ScreenRect {
-	glm::ivec2 origin = { 0, 0 };
-	glm::uvec2 size = { 0, 0 };
-};
-
 class IRenderer {
   public:
 	virtual ~IRenderer() = default;
+
+	virtual void SetPresentOverlayHook(std::function<void()> fn) {
+	}
+	virtual uint32_t GetSwapchainImageCount() const {
+		return 3;
+	}
 
 	virtual bool BeginFrame() = 0;
 	virtual void EndFrame() = 0;
@@ -72,6 +69,18 @@ class IRenderer {
 	    TextureHandle textureHandle,
 	    uint32_t arrayIndex = 0
 	) = 0;
+	virtual void BindTexture(
+	    MaterialHandle materialHandle,
+	    std::string_view name,
+	    FrameBufferHandle frameBufferHandle,
+	    uint32_t arrayIndex = 0
+	) = 0;
+	virtual void BindTexture(
+	    ComputeProgramHandle programHandle,
+	    std::string_view name,
+	    FrameBufferHandle frameBufferHandle,
+	    uint32_t arrayIndex = 0
+	) = 0;
 	virtual void BindBuffer(
 	    MaterialHandle materialHandle,
 	    std::string_view name,
@@ -89,6 +98,18 @@ class IRenderer {
 
 	virtual size_t GetUniformBufferOffsetAlignment() const = 0;
 	virtual size_t GetStorageBufferOffsetAlignment() const = 0;
+
+	// Used by stages
+	virtual void BeginStage(std::string_view name, StageType type) = 0;
+	virtual void EndStage() = 0;
+
+	virtual void UseResource(TextureHandle h, ResourceUsage usage) = 0;
+	virtual void UseResource(BufferHandle h, ResourceUsage usage) = 0;
+	virtual void UseResource(FrameBufferHandle h, ResourceUsage usage) = 0;
+
+	virtual void SetStageRenderTarget(FrameBufferHandle fbo) = 0;
+	virtual void SetStageViewport(ScreenRect rect) = 0;
+	virtual void SetStageScissor(ScreenRect rect) = 0;
 };
 
 } // namespace PixieRenderer

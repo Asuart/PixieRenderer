@@ -13,7 +13,7 @@ target_include_directories(SponzaScene PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_include_directories(SponzaScene PRIVATE "${CMAKE_SOURCE_DIR}/dependencies/tinyobjloader/")
 target_include_directories(SponzaScene PRIVATE "${CMAKE_SOURCE_DIR}/dependencies/stb/")
 
-target_link_libraries(SponzaScene PRIVATE ufbx)
+target_link_libraries(SponzaScene PRIVATE pxr::usd)
 target_link_libraries(SponzaScene PRIVATE EnTT::EnTT)
 target_link_libraries(SponzaScene PRIVATE PixieUIApplication)
 

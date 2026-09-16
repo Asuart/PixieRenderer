@@ -101,18 +101,35 @@ void VulkanProgram::BindTexture(
     uint32_t frameIndex,
     uint32_t arrayIndex
 ) {
-	if (frameIndex >= m_descriptorSets.size()) {
+	BindTextureView(name, texture.GetImageView(), texture.GetSampler(), frameIndex, arrayIndex);
+}
+
+void VulkanProgram::BindTextureView(
+    std::string_view name,
+    VkImageView view,
+    VkSampler sampler,
+    uint32_t frameIndex,
+    uint32_t arrayIndex
+) {
+	if (frameIndex >= m_descriptorSets.size())
 		throw std::runtime_error("Frame index out of range");
-	}
+
 	auto it = m_bindingsByName.find(std::string(name));
-	if (it == m_bindingsByName.end()) {
+	if (it == m_bindingsByName.end())
 		return;
-	}
+
+	const VkDescriptorType type = static_cast<VkDescriptorType>(it->second.type);
 
 	VkDescriptorImageInfo info{};
-	info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	info.imageView = texture.GetImageView();
-	info.sampler = texture.GetSampler();
+	if (type == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE) {
+		info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+		info.imageView = view;
+		info.sampler = VK_NULL_HANDLE;
+	} else {
+		info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		info.imageView = view;
+		info.sampler = sampler;
+	}
 
 	VkWriteDescriptorSet write{};
 	write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -120,7 +137,7 @@ void VulkanProgram::BindTexture(
 	write.dstBinding = it->second.binding;
 	write.dstArrayElement = arrayIndex;
 	write.descriptorCount = 1;
-	write.descriptorType = static_cast<VkDescriptorType>(it->second.type);
+	write.descriptorType = type;
 	write.pImageInfo = &info;
 
 	vkUpdateDescriptorSets(m_device.GetDevice(), 1, &write, 0, nullptr);

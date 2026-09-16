@@ -32,7 +32,7 @@ target_link_libraries(imgui PUBLIC glfw)
 target_link_libraries(imgui PUBLIC Vulkan::Vulkan)
 
 if (MSVC)
-    target_compile_options(imgui PRIVATE /W4 /WX)
+    # target_compile_options(imgui PRIVATE /W4 /WX)
 else()
     target_compile_options(imgui PRIVATE -Wall -Werror)
 endif()

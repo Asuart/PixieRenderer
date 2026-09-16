@@ -217,6 +217,7 @@ BindingsInfo ShaderCompilerVulkan::ReflectSPIRV(const SpirVBinary& binary) {
 	add_bindings(resources.sampled_images, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_ALL);
 	add_bindings(resources.separate_images, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_ALL);
 	add_bindings(resources.separate_samplers, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_ALL);
+	add_bindings(resources.storage_images, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_ALL);
 
 	uint32_t pushSize = 0;
 	for (const auto& res : resources.push_constant_buffers) {

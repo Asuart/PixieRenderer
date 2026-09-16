@@ -1,5 +1,10 @@
 cmake_minimum_required(VERSION 3.22)
 
+# === КРИТИЧЕСКИЙ БЛОК ДЛЯ VCPKG (СТРОГО ДО КУРСА project()) ===
+if(DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+    set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
+endif()
+
 project(PixieRendering VERSION 1.0.0 LANGUAGES C CXX)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/$<CONFIGURATION>")
@@ -18,6 +23,8 @@ if (UNIX AND NOT APPLE)
 endif()
 add_subdirectory(dependencies)
 
+# Теперь vcpkg подключен, и CMake успешно найдет файлы pxrConfig.cmake
+find_package(pxr CONFIG REQUIRED)
 find_package(Vulkan REQUIRED)
 
 add_subdirectory(source)

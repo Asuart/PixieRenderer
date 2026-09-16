@@ -62,6 +62,20 @@ class RendererOpenGL : public IRenderer {
 	    TextureHandle textureHandle,
 	    uint32_t arrayIndex = 0
 	) override;
+	void BindTexture(
+	    MaterialHandle materialHandle,
+	    std::string_view name,
+	    FrameBufferHandle frameBufferHandle,
+	    uint32_t arrayIndex = 0
+	) override {
+	}
+	void BindTexture(
+	    ComputeProgramHandle programHandle,
+	    std::string_view name,
+	    FrameBufferHandle frameBufferHandle,
+	    uint32_t arrayIndex = 0
+	) override {
+	}
 	void BindBuffer(
 	    MaterialHandle materialHandle,
 	    std::string_view name,
@@ -82,6 +96,30 @@ class RendererOpenGL : public IRenderer {
 
 	GLuint GetInternalTextureID(TextureHandle handle);
 	GLuint GetInternalFrameBufferColorAttachmentID(FrameBufferHandle handle);
+
+	void BeginStage(std::string_view /*name*/, StageType /*type*/) {
+
+	}
+	void EndStage() {
+
+	}
+
+	void UseResource(TextureHandle, ResourceUsage) { /* GL: glMemoryBarrier */
+	}
+	void UseResource(BufferHandle, ResourceUsage) { /* GL: glMemoryBarrier */
+	}
+	void UseResource(FrameBufferHandle, ResourceUsage) { /* GL: glMemoryBarrier */
+	}
+
+	void SetStageRenderTarget(FrameBufferHandle fbo) {
+		BeginRenderPass(fbo);
+	}
+	void SetStageViewport(ScreenRect r) {
+		SetViewport(r);
+	}
+	void SetStageScissor(ScreenRect r) {
+		SetScissor(r);
+	}
 
   private:
 	glm::uvec2 m_surfaceResolution = { 0, 0 };
