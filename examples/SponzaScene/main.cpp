@@ -860,21 +860,11 @@ static void UpdateCamera(SceneData& s, float dt, glm::uvec2 resolution) {
 // ============================================================================
 
 int main() {
-#ifdef _WIN32
-	char exePath[MAX_PATH];
-	GetModuleFileNameA(NULL, exePath, MAX_PATH);
-	std::filesystem::path exeDir = std::filesystem::path(exePath).parent_path();
-
-	std::string pluginPath = (exeDir / "lib" / "usd").string() + ";" + (exeDir / "plugin" / "usd").string();
-
-	_putenv_s("PXR_PLUGINPATH_NAME", pluginPath.c_str());
-#endif
-
 	WindowVulkan window("PixieRenderer", glm::ivec2(kRenderSize));
 	IRenderer* renderer = window.GetRenderer();
 
 	// ---- USD scene ----
-	const std::string scenePath = "C:/Repos/PixieRendering/assets/main_sponza/NewSponza_Main_USD_Yup_003.usda";
+	const std::string scenePath = "/home/asuart/Repos/PixieRendering/assets/main_sponza/NewSponza_Main_USD_Yup_003.usda";
 	gAssetRoot = std::filesystem::path(scenePath).parent_path();
 
 	SceneData scene;
