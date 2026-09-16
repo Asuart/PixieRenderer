@@ -1,10 +1,14 @@
 #include <algorithm>
 #include <cstring>
+#include <cstdlib>          // ← добавлено: _putenv_s, std::getenv
 #include <filesystem>
 #include <functional>
 #include <iostream>
 #include <memory>
 #include <unordered_map>
+
+#ifdef _WIN32
+#endif
 
 #include <GLFW/glfw3.h>
 
@@ -20,7 +24,6 @@
 #include <PixieRendering/RenderGraph/RenderGraphContext.h>
 #include <PixieRendering/Renderer/IRenderer.h>
 #include <PixieRendering/Renderer/Vulkan/RendererVulkan.h>
-#include <PixieRendering/Renderer/Vulkan/VulkanRenderPass.h>
 #include <PixieRendering/Window/WindowVulkan.h>
 
 #include <PixieApplication/Time/ApplicationTime.h>
@@ -32,12 +35,23 @@
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include <stb_image_resize2.h>
 
-#include <ufbx.h>
+// ---- OpenUSD ----
+#include <pxr/base/gf/matrix4d.h>
+#include <pxr/base/vt/array.h>
+#include <pxr/usd/sdf/assetPath.h>
+#include <pxr/usd/usd/primRange.h>
+#include <pxr/usd/usd/stage.h>
+#include <pxr/usd/usdGeom/mesh.h>
+#include <pxr/usd/usdGeom/primvarsAPI.h>
+#include <pxr/usd/usdGeom/xformable.h>
+#include <pxr/usd/usdShade/connectableAPI.h>
+#include <pxr/usd/usdShade/material.h>
+#include <pxr/usd/usdShade/materialBindingAPI.h>
+#include <pxr/usd/usdShade/shader.h>
 
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_vulkan.h>
 #include <imgui.h>
-// #include <imgui_impl_opengl3.h>   // если понадобится GL
 
 using namespace PixieRenderer;
 using namespace PixieApp;
@@ -48,20 +62,18 @@ static constexpr glm::uvec2 kRenderSize = { 1280, 720 };
 static std::filesystem::path gAssetRoot;
 
 // ============================================================================
-// FBX helpers
+// USD helpers
 // ============================================================================
 
-static std::string UfbxStringToStd(const ufbx_string& s) {
-	return s.data ? std::string(s.data, s.length) : std::string();
+static std::string TfToString(const pxr::TfToken& t) {
+	return t.GetString();
 }
 
-static glm::mat4 UfbxMatrixToGlm(const ufbx_matrix& m) {
+static glm::mat4 GfMatrixToGlm(const pxr::GfMatrix4d& m) {
 	glm::mat4 r(1.0f);
-	r[0] = glm::vec4(m.cols[0].x, m.cols[0].y, m.cols[0].z, 0.0f);
-	r[1] = glm::vec4(m.cols[1].x, m.cols[1].y, m.cols[1].z, 0.0f);
-	r[2] = glm::vec4(m.cols[2].x, m.cols[2].y, m.cols[2].z, 0.0f);
-	const ufbx_vec3 t = ufbx_transform_position(&m, ufbx_vec3{ 0, 0, 0 });
-	r[3] = glm::vec4(t.x, t.y, t.z, 1.0f);
+	for (int row = 0; row < 4; row++)
+		for (int col = 0; col < 4; col++)
+			r[col][row] = static_cast<float>(m[row][col]);
 	return r;
 }
 
@@ -209,24 +221,135 @@ static TextureHandle LoadTextureCached(SceneData& s, IRenderer* r, const std::st
 }
 
 // ============================================================================
-// Scene loading
+// USD material → texture
+// ============================================================================
+
+// Извлекает файл текстуры из UsdUVTexture, подключённого к input.
+// Если input не подключён к текстуре — возвращает solid-заглушку.
+static TextureHandle GetTextureFromInput(
+    const pxr::UsdShadeInput& input,
+    SceneData& s,
+    IRenderer* r,
+    glm::vec4 fallback,
+    TextureFormat fmt,
+    bool srgb
+) {
+	if (!input || !input.HasConnectedSource())
+		return CreateSolidTexture(r, fallback, fmt);
+
+	pxr::UsdShadeConnectableAPI source;
+	pxr::TfToken sourceName;
+	pxr::UsdShadeAttributeType sourceType;
+	if (!input.GetConnectedSource(&source, &sourceName, &sourceType))
+		return CreateSolidTexture(r, fallback, fmt);
+
+	if (!source.GetPrim().IsA<pxr::UsdShadeShader>())
+		return CreateSolidTexture(r, fallback, fmt);
+
+	pxr::UsdShadeShader shader(source.GetPrim());
+	auto fileInput = shader.GetInput(pxr::TfToken("file"));
+	if (!fileInput)
+		return CreateSolidTexture(r, fallback, fmt);
+
+	pxr::SdfAssetPath assetPath;
+	if (!fileInput.Get(&assetPath))
+		return CreateSolidTexture(r, fallback, fmt);
+
+	std::string texPath = assetPath.GetResolvedPath();
+	if (texPath.empty())
+		texPath = assetPath.GetAssetPath();
+	if (texPath.empty())
+		return CreateSolidTexture(r, fallback, fmt);
+
+	return LoadTextureCached(s, r, ResolveTexturePath(texPath), srgb);
+}
+
+// ============================================================================
+// Scene loading via USD
 // ============================================================================
 
 static void LoadScene(SceneData& s, IRenderer* r, const std::string& path) {
-	ufbx_error err;
-	ufbx_scene* scene = ufbx_load_file(path.c_str(), nullptr, &err);
-	if (!scene) {
-		std::cerr << "Failed to load FBX\n";
+	pxr::UsdStageRefPtr stage = pxr::UsdStage::Open(path);
+	if (!stage) {
+		std::cerr << "Failed to open USD stage: " << path << "\n";
 		std::exit(1);
 	}
-	std::cout << "FBX: materials=" << scene->materials.count << " nodes=" << scene->nodes.count << "\n";
 
-	s.materials.reserve(std::max<size_t>(1, scene->materials.count));
-	s.materialHandles.reserve(std::max<size_t>(1, scene->materials.count));
+	const pxr::UsdTimeCode time = pxr::UsdTimeCode::Default();
 
-	std::unordered_map<const ufbx_material*, size_t> matIndex;
+	std::cout << "USD stage opened: " << path << "\n";
 
-	if (scene->materials.count == 0) {
+	// ------------------------------------------------------------------
+	// Pass 1: материалы
+	// ------------------------------------------------------------------
+	s.materials.reserve(64);
+	s.materialHandles.reserve(64);
+
+	std::unordered_map<std::string, size_t> matIndex;
+
+	for (const auto& prim : stage->Traverse()) {
+		if (!prim.IsA<pxr::UsdShadeMaterial>())
+			continue;
+
+		std::string matKey = prim.GetPath().GetString();
+		if (matIndex.count(matKey))
+			continue;
+
+		pxr::UsdShadeMaterial usdMat(prim);
+		auto mat = std::make_unique<PBRMaterial>();
+
+		// UsdPreviewSurface: значения по умолчанию
+		glm::vec3 albedo(1.0f);
+		float metallic = 0.0f;
+		float roughness = 0.5f;
+
+		pxr::UsdShadeShader surface = usdMat.ComputeSurfaceSource();
+
+		if (surface) {
+			auto diffuseInput = surface.GetInput(pxr::TfToken("diffuseColor"));
+			auto metallicInput = surface.GetInput(pxr::TfToken("metallic"));
+			auto roughInput = surface.GetInput(pxr::TfToken("roughness"));
+			auto normalInput = surface.GetInput(pxr::TfToken("normal"));
+
+			pxr::GfVec3f diffuseVal(1.0f);
+			if (diffuseInput && diffuseInput.Get(&diffuseVal))
+				albedo = { diffuseVal[0], diffuseVal[1], diffuseVal[2] };
+
+			if (metallicInput && metallicInput.Get(&metallic)) {
+			}
+			if (roughInput && roughInput.Get(&roughness)) {
+			}
+
+			mat->SetAlbedoTexture(GetTextureFromInput(diffuseInput, s, r, { 1, 1, 1, 1 }, TextureFormat::RGBA32f, true)
+			);
+			mat->SetNormalTexture(
+			    GetTextureFromInput(normalInput, s, r, { 0.5f, 0.5f, 1, 1 }, TextureFormat::RGBA32f, false)
+			);
+			mat->SetMetallicTexture(
+			    GetTextureFromInput(metallicInput, s, r, { 0, 0, 0, 1 }, TextureFormat::Red32f, false)
+			);
+			mat->SetRoughnessTexture(GetTextureFromInput(roughInput, s, r, { 1, 1, 1, 1 }, TextureFormat::Red32f, false)
+			);
+		} else {
+			mat->SetAlbedoTexture(CreateSolidTexture(r, { 1, 1, 1, 1 }, TextureFormat::RGBA32f));
+			mat->SetNormalTexture(CreateSolidTexture(r, { 0.5f, 0.5f, 1, 1 }, TextureFormat::RGBA32f));
+			mat->SetMetallicTexture(CreateSolidTexture(r, { 0, 0, 0, 1 }, TextureFormat::Red32f));
+			mat->SetRoughnessTexture(CreateSolidTexture(r, { 1, 1, 1, 1 }, TextureFormat::Red32f));
+		}
+
+		mat->SetAlbedo(albedo);
+		mat->SetMetallic(metallic);
+		mat->SetRoughness(roughness);
+
+		MaterialHandle mh = r->CreateMaterial(mat.get());
+		mat->SetHandle(mh);
+
+		matIndex[matKey] = s.materialHandles.size();
+		s.materialHandles.push_back(mh);
+		s.materials.push_back(std::move(mat));
+	}
+
+	if (s.materialHandles.empty()) {
 		auto mat = std::make_unique<PBRMaterial>();
 		mat->SetAlbedo({ 1, 1, 1 });
 		mat->SetMetallic(0.0f);
@@ -235,116 +358,153 @@ static void LoadScene(SceneData& s, IRenderer* r, const std::string& path) {
 		mat->SetNormalTexture(CreateSolidTexture(r, { 0.5f, 0.5f, 1, 1 }, TextureFormat::RGBA32f));
 		mat->SetMetallicTexture(CreateSolidTexture(r, { 0, 0, 0, 1 }, TextureFormat::Red32f));
 		mat->SetRoughnessTexture(CreateSolidTexture(r, { 1, 1, 1, 1 }, TextureFormat::Red32f));
+
 		MaterialHandle mh = r->CreateMaterial(mat.get());
 		mat->SetHandle(mh);
 		s.materialHandles.push_back(mh);
 		s.materials.push_back(std::move(mat));
 		std::cout << "Scene has no materials — using default PBR material.\n";
 	} else {
-		for (size_t i = 0; i < scene->materials.count; i++) {
-			ufbx_material* um = scene->materials.data[i];
-			matIndex[um] = i;
-			auto mat = std::make_unique<PBRMaterial>();
-			const ufbx_vec4 base = um->pbr.base_color.value_vec4;
-			mat->SetAlbedo({ base.x, base.y, base.z });
-			mat->SetMetallic(static_cast<float>(um->pbr.metalness.value_real));
-			mat->SetRoughness(static_cast<float>(um->pbr.roughness.value_real));
-
-			auto resolveTex = [&](const ufbx_texture* tex, glm::vec4 def, TextureFormat fmt, bool srgb
-			                  ) -> TextureHandle {
-				if (tex && tex->filename.data) {
-					std::string p = ResolveTexturePath(UfbxStringToStd(tex->filename));
-					return LoadTextureCached(s, r, p, srgb);
-				}
-				return CreateSolidTexture(r, def, fmt);
-			};
-
-			mat->SetAlbedoTexture(resolveTex(um->pbr.base_color.texture, { 1, 1, 1, 1 }, TextureFormat::RGBA32f, true));
-			mat->SetNormalTexture(
-			    resolveTex(um->pbr.normal_map.texture, { 0.5f, 0.5f, 1, 1 }, TextureFormat::RGBA32f, false)
-			);
-			mat->SetMetallicTexture(resolveTex(um->pbr.metalness.texture, { 0, 0, 0, 1 }, TextureFormat::Red32f, false)
-			);
-			mat->SetRoughnessTexture(resolveTex(um->pbr.roughness.texture, { 1, 1, 1, 1 }, TextureFormat::Red32f, false)
-			);
-
-			MaterialHandle mh = r->CreateMaterial(mat.get());
-			mat->SetHandle(mh);
-			s.materialHandles.push_back(mh);
-			s.materials.push_back(std::move(mat));
-		}
-		std::cout << "Loaded " << scene->materials.count << " material(s).\n";
+		std::cout << "Loaded " << s.materialHandles.size() << " material(s).\n";
 	}
 
-	for (size_t ni = 0; ni < scene->nodes.count; ni++) {
-		ufbx_node* node = scene->nodes.data[ni];
-		if (!node->mesh || !node->visible)
+	// ------------------------------------------------------------------
+	// Pass 2: меши
+	// ------------------------------------------------------------------
+	size_t meshCount = 0;
+
+	for (const auto& prim : stage->Traverse()) {
+		if (!prim.IsA<pxr::UsdGeomMesh>())
 			continue;
-		if (UfbxStringToStd(node->name).contains("decal"))
+		if (prim.IsPrototype())
+			continue;
+		if (!prim.IsActive())
+			continue;
+		if (prim.IsInstance())
+			continue; // инстансы пока не разворачиваем
+
+		pxr::UsdGeomMesh usdMesh(prim);
+
+		// Пропускаем невидимые
+		auto vis = usdMesh.ComputeVisibility(time);
+		if (vis == pxr::UsdGeomTokens->invisible)
 			continue;
 
-		ufbx_mesh* umesh = node->mesh;
-		if (umesh->num_faces == 0 || umesh->num_triangles == 0)
+		// --- Геометрия ---
+		pxr::VtArray<pxr::GfVec3f> points;
+		if (!usdMesh.GetPointsAttr().Get(&points, time) || points.empty())
 			continue;
 
-		const glm::mat4 world = UfbxMatrixToGlm(node->geometry_to_world);
-		std::unordered_map<size_t, Mesh> byMat;
+		pxr::VtArray<pxr::GfVec3f> normals;
+		usdMesh.GetNormalsAttr().Get(&normals, time);
+		pxr::TfToken normalsInterp = usdMesh.GetNormalsInterpolation();
 
-		for (size_t fi = 0; fi < umesh->num_faces; fi++) {
-			const ufbx_face face = umesh->faces.data[fi];
-			uint32_t faceMatId = (umesh->face_material.data && fi < umesh->face_material.count)
-			                         ? umesh->face_material.data[fi]
-			                         : 0u;
-
-			ufbx_material* matRef = nullptr;
-			if (umesh->materials.data && faceMatId < umesh->materials.count)
-				matRef = umesh->materials.data[faceMatId];
-
-			size_t globalMatId = 0;
-			auto it = matIndex.find(matRef);
-			if (it != matIndex.end())
-				globalMatId = it->second;
-
-			Mesh& mesh = byMat[globalMatId];
-			for (uint32_t i = 2; i < face.num_indices; i++) {
-				const uint32_t tri[3] = { face.index_begin, face.index_begin + i - 1, face.index_begin + i };
-				for (int j = 0; j < 3; j++) {
-					const uint32_t vi = tri[j];
-					Vertex v{};
-					auto p = ufbx_get_vertex_vec3(&umesh->vertex_position, vi);
-					v.position = { p.x, p.y, p.z };
-					if (umesh->vertex_normal.exists) {
-						auto n = ufbx_get_vertex_vec3(&umesh->vertex_normal, vi);
-						glm::vec3 gn(n.x, n.y, n.z);
-						float len = glm::length(gn);
-						v.normal = (len > 1e-8f) ? gn / len : glm::vec3(0, 1, 0);
-					}
-					if (umesh->vertex_uv.exists) {
-						auto uv = ufbx_get_vertex_vec2(&umesh->vertex_uv, vi);
-						v.uv = { uv.x, uv.y };
-					}
-					mesh.vertexes.push_back(v);
-					mesh.indexes.push_back(static_cast<int32_t>(mesh.vertexes.size() - 1));
-				}
+		// UV: примарвар "st" (стандарт USD). Иногда "UVMap" или "uv".
+		pxr::VtArray<pxr::GfVec2f> uvs;
+		pxr::TfToken uvInterp;
+		{
+			pxr::UsdGeomPrimvarsAPI primvars(prim);
+			auto stPv = primvars.GetPrimvar(pxr::TfToken("st"));
+			if (!stPv)
+				stPv = primvars.GetPrimvar(pxr::TfToken("UVMap"));
+			if (!stPv)
+				stPv = primvars.GetPrimvar(pxr::TfToken("uv"));
+			if (stPv) {
+				stPv.Get(&uvs, time);
+				uvInterp = stPv.GetInterpolation();
 			}
 		}
 
-		for (auto& [matId, mesh] : byMat) {
-			if (mesh.vertexes.empty())
+		pxr::VtArray<int> faceVertexCounts;
+		pxr::VtArray<int> faceVertexIndices;
+		usdMesh.GetFaceVertexCountsAttr().Get(&faceVertexCounts, time);
+		usdMesh.GetFaceVertexIndicesAttr().Get(&faceVertexIndices, time);
+		if (faceVertexCounts.empty() || faceVertexIndices.empty())
+			continue;
+
+		// --- Мировой трансформ ---
+		pxr::UsdGeomXformable xformable(prim);
+		pxr::GfMatrix4d worldXform = xformable.ComputeLocalToWorldTransform(time);
+		glm::mat4 world = GfMatrixToGlm(worldXform);
+
+		// --- Материал ---
+		pxr::UsdShadeMaterialBindingAPI bindingAPI(prim);
+		pxr::UsdShadeMaterial boundMat = bindingAPI.ComputeBoundMaterial();
+		std::string matKey = boundMat ? boundMat.GetPath().GetString() : "";
+
+		size_t safeId = 0;
+		auto it = matIndex.find(matKey);
+		if (it != matIndex.end())
+			safeId = it->second;
+
+		// --- Триангуляция (fan) ---
+		Mesh meshData;
+		size_t indexOffset = 0;
+
+		for (int fi = 0; fi < static_cast<int>(faceVertexCounts.size()); fi++) {
+			const int count = faceVertexCounts[fi];
+			if (count < 3) {
+				indexOffset += count;
 				continue;
-			MeshHandle mh = r->CreateMesh(&mesh);
-			s.meshStorage.push_back(mh);
-			size_t safeId = (matId < s.materialHandles.size()) ? matId : s.materialHandles.size() - 1;
-			s.items.push_back({ mh, s.materialHandles[safeId], world });
+			}
+
+			for (int i = 2; i < count; i++) {
+				const int tri[3] = { faceVertexIndices[indexOffset],
+					                 faceVertexIndices[indexOffset + i - 1],
+					                 faceVertexIndices[indexOffset + i] };
+
+				// Для faceVarying-примарваров индекс в массиве совпадает
+				// с индексом в faceVertexIndices.
+				const int fvIdx[3] = { static_cast<int>(indexOffset),
+					                   static_cast<int>(indexOffset + i - 1),
+					                   static_cast<int>(indexOffset + i) };
+
+				for (int j = 0; j < 3; j++) {
+					const int vi = tri[j];
+					Vertex v{};
+
+					v.position = { points[vi][0], points[vi][1], points[vi][2] };
+
+					// Нормали
+					if (!normals.empty()) {
+						int ni = (normalsInterp == pxr::UsdGeomTokens->faceVarying) ? fvIdx[j] : vi;
+						if (ni >= 0 && ni < static_cast<int>(normals.size()))
+							v.normal = { normals[ni][0], normals[ni][1], normals[ni][2] };
+					}
+					if (glm::length(v.normal) < 1e-8f)
+						v.normal = glm::vec3(0, 1, 0);
+					else
+						v.normal = glm::normalize(v.normal);
+
+					// UV
+					if (!uvs.empty()) {
+						int ui = (uvInterp == pxr::UsdGeomTokens->faceVarying) ? fvIdx[j] : vi;
+						if (ui >= 0 && ui < static_cast<int>(uvs.size()))
+							v.uv = { uvs[ui][0], uvs[ui][1] };
+					}
+
+					meshData.vertexes.push_back(v);
+					meshData.indexes.push_back(static_cast<int32_t>(meshData.vertexes.size() - 1));
+				}
+			}
+			indexOffset += count;
 		}
+
+		if (meshData.vertexes.empty())
+			continue;
+
+		MeshHandle mh = r->CreateMesh(&meshData);
+		s.meshStorage.push_back(mh);
+		s.items.push_back({ mh, s.materialHandles[safeId], world });
+		meshCount++;
 	}
 
-	ufbx_free_scene(scene);
-	std::cout << "Loaded: " << s.items.size() << " draw items\n";
+	std::cout << "Loaded: " << s.items.size() << " draw items, " << s.materialHandles.size() << " material handle(s), "
+	          << s.textureCache.size() << " cached texture(s)\n";
 }
 
 // ============================================================================
-// ImGui backend (живёт только в main.cpp)
+// ImGui backend (без изменений)
 // ============================================================================
 
 class ImGuiBackend {
@@ -354,7 +514,6 @@ class ImGuiBackend {
 	virtual void Shutdown() = 0;
 	virtual void NewFrame() = 0;
 	virtual void Render() = 0;
-	virtual void AttachToRenderer(IRenderer* r) = 0;
 };
 
 class ImGuiBackendVulkan : public ImGuiBackend {
@@ -409,7 +568,6 @@ class ImGuiBackendVulkan : public ImGuiBackend {
 
 		ImGui_ImplVulkan_Init(&init_info);
 
-		// Хук через публичный IRenderer API — никаких внутренних объектов.
 		m_renderer->SetPresentOverlayHook([this]() {
 			ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), m_renderer->GetCurrentFrameCommandBuffer());
 		});
@@ -437,10 +595,6 @@ class ImGuiBackendVulkan : public ImGuiBackend {
 
 	void Render() override {
 		ImGui::Render();
-		// Ничего не делаем: команды уже записаны через SetAfterDraw
-	}
-
-	void AttachToRenderer(IRenderer*) override {
 	}
 
   private:
@@ -448,14 +602,10 @@ class ImGuiBackendVulkan : public ImGuiBackend {
 	VkDescriptorPool m_pool = VK_NULL_HANDLE;
 };
 
-// class ImGuiBackendOpenGL : public ImGuiBackend { ... } // аналогично, вызов ImGui_ImplOpenGL3_RenderDrawData
-//                                                        // через renderer->SetOverlayDraw(...)
-
 static std::unique_ptr<ImGuiBackend> MakeImGuiBackend(RenderAPI api) {
 	switch (api) {
 	case RenderAPI::Vulkan:
 		return std::make_unique<ImGuiBackendVulkan>();
-	// case RenderAPI::OpenGL: return std::make_unique<ImGuiBackendOpenGL>();
 	default:
 		return nullptr;
 	}
@@ -648,8 +798,6 @@ class PresentStage : public IRenderStage {
 	}
 
 	void Execute(RenderGraphContext& ctx) override {
-		// Ставит в очередь; реальные VkCmd будут записаны в VulkanRenderPass::Execute,
-		// в который мы встроили ImGui-хук (см. ImGuiBackendVulkan::Init).
 		DrawRequest req{};
 		req.material = m_mat;
 		req.mesh = m_quad;
@@ -712,10 +860,21 @@ static void UpdateCamera(SceneData& s, float dt, glm::uvec2 resolution) {
 // ============================================================================
 
 int main() {
+#ifdef _WIN32
+	char exePath[MAX_PATH];
+	GetModuleFileNameA(NULL, exePath, MAX_PATH);
+	std::filesystem::path exeDir = std::filesystem::path(exePath).parent_path();
+
+	std::string pluginPath = (exeDir / "lib" / "usd").string() + ";" + (exeDir / "plugin" / "usd").string();
+
+	_putenv_s("PXR_PLUGINPATH_NAME", pluginPath.c_str());
+#endif
+
 	WindowVulkan window("PixieRenderer", glm::ivec2(kRenderSize));
 	IRenderer* renderer = window.GetRenderer();
 
-	const std::string scenePath = "C:/Repos/PixieRendering/assets/main_sponza/NewSponza_Main_Yup_003.fbx";
+	// ---- USD scene ----
+	const std::string scenePath = "C:/Repos/PixieRendering/assets/main_sponza/NewSponza_Main_USD_Yup_003.usda";
 	gAssetRoot = std::filesystem::path(scenePath).parent_path();
 
 	SceneData scene;
@@ -746,7 +905,7 @@ int main() {
 	rtDesc.format = TextureFormat::RGBA32f;
 	rtDesc.size = kRenderSize;
 	rtDesc.hasDepth = true;
-	//rtDesc.storageImage = true; // ← нужно для compute
+	// rtDesc.storageImage = true;
 	rtDesc.finalUsage = ResourceUsage::Sampled;
 	RGResource sceneColor = rg.RegisterRenderTarget("SceneColor", rtDesc);
 
@@ -781,10 +940,9 @@ int main() {
 			ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
 			ImGui::Text("Camera: %.2f %.2f %.2f", scene.cam.position.x, scene.cam.position.y, scene.cam.position.z);
 			ImGui::Text("Draw items: %zu", scene.items.size());
+			ImGui::Text("Materials: %zu", scene.materials.size());
 			ImGui::End();
 
-			// ImGui::Render() фиксирует draw lists; реальная запись VkCmd
-			// произойдёт внутри present render pass через SetAfterDraw hook.
 			imgui->Render();
 		}
 
