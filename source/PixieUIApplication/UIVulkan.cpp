@@ -41,11 +41,11 @@ UIVulkan::UIVulkan(WindowVulkan* mainWindow, bool docking) : UI(mainWindow, dock
 	RendererVulkan* renderer = reinterpret_cast<WindowVulkan*>(mainWindow)->GetRendererVulkan();
 
 	VkDescriptorPool imguiPool;
-	if (vkCreateDescriptorPool(renderer->GetDevice(), &pool_info, nullptr, &imguiPool) !=
-	    VK_SUCCESS) {
+	if (vkCreateDescriptorPool(renderer->GetDevice(), &pool_info, nullptr, &imguiPool) != VK_SUCCESS) {
 		PixieApp::Log::Error("Failed to create Vulkan descriptor pool.");
 		exit(1);
 	}
+	m_pool = imguiPool;
 
 	ImGui::CreateContext();
 	ImGuiIO& io = ImGui::GetIO();
@@ -78,12 +78,33 @@ UIVulkan::UIVulkan(WindowVulkan* mainWindow, bool docking) : UI(mainWindow, dock
 		PixieApp::Log::Error("Failed to init imgui for vulkan.");
 		exit(3);
 	}
+
+	// Draw ImGui while the present render pass is still active.
+	renderer->SetPresentOverlayHook([renderer]() {
+		ImDrawData* drawData = ImGui::GetDrawData();
+		if (!drawData || drawData->CmdListsCount == 0)
+			return;
+		ImGui_ImplVulkan_RenderDrawData(drawData, renderer->GetCurrentFrameCommandBuffer());
+	});
 }
 
 UIVulkan::~UIVulkan() {
+	if (m_window) {
+		if (auto* renderer = reinterpret_cast<WindowVulkan*>(m_window)->GetRendererVulkan()) {
+			renderer->SetPresentOverlayHook(nullptr);
+		}
+	}
+
 	ImGui_ImplVulkan_Shutdown();
 	ImGui_ImplGlfw_Shutdown();
 	ImGui::DestroyContext();
+
+	if (m_pool != VK_NULL_HANDLE && m_window) {
+		if (auto* renderer = reinterpret_cast<WindowVulkan*>(m_window)->GetRendererVulkan()) {
+			vkDestroyDescriptorPool(renderer->GetDevice(), m_pool, nullptr);
+		}
+		m_pool = VK_NULL_HANDLE;
+	}
 }
 
 void UIVulkan::Draw() {
@@ -92,7 +113,6 @@ void UIVulkan::Draw() {
 	ImGui::NewFrame();
 
 	static ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_None;
-
 	ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoDocking;
 
 	const ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -101,8 +121,8 @@ void UIVulkan::Draw() {
 	ImGui::SetNextWindowViewport(viewport->ID);
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-	windowFlags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
-	               ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+	windowFlags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
+	               ImGuiWindowFlags_NoMove;
 	windowFlags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
 
 	if (dockspaceFlags & ImGuiDockNodeFlags_PassthruCentralNode) {
@@ -111,7 +131,6 @@ void UIVulkan::Draw() {
 
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
 	ImGui::Begin("DockSpace", &m_isDocking, windowFlags);
-
 	ImGui::PopStyleVar(3);
 
 	if (m_isDocking) {
@@ -132,8 +151,8 @@ void UIVulkan::Draw() {
 		ImGui::RenderPlatformWindowsDefault();
 	}
 
-	RendererVulkan* renderer = reinterpret_cast<WindowVulkan*>(m_window)->GetRendererVulkan();
-	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), renderer->GetCurrentFrameCommandBuffer());
+	// Actual draw data is submitted via SetPresentOverlayHook while the
+	// present render pass is active.
 }
 
 UIImage* UIVulkan::CreateUIImage(IRenderer* renderer, FrameBufferHandle handle) {

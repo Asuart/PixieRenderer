@@ -1,6 +1,8 @@
 #pragma once
 #include "UI.h"
 
+#include <vulkan/vulkan.h>
+
 namespace PixieRenderer {
 class WindowVulkan;
 }
@@ -19,6 +21,9 @@ class UIVulkan : public UI {
 	) override;
 	UIImage* CreateUIImage(PixieRenderer::IRenderer* renderer, PixieRenderer::TextureHandle handle)
 	    override;
+
+		private:
+			VkDescriptorPool m_pool = VK_NULL_HANDLE;
 };
 
 } // namespace PixieUI

@@ -53,6 +53,12 @@
 #include <backends/imgui_impl_vulkan.h>
 #include <imgui.h>
 
+#include <PixieUIApplication/UI.h>
+#include <PixieUIApplication/UIVulkan.h>
+#include <PixieUIApplication/Windows/ApplicationStatsWindow.h>
+#include <PixieUIApplication/Windows/DemoWindow.h>
+#include <PixieUIApplication/Windows/TextureDisplayWindow.h>
+
 using namespace PixieRenderer;
 using namespace PixieApp;
 
@@ -859,49 +865,51 @@ static void UpdateCamera(SceneData& s, float dt, glm::uvec2 resolution) {
 // main
 // ============================================================================
 
+using namespace PixieUI;
+
 int main() {
 	WindowVulkan window("PixieRenderer", glm::ivec2(kRenderSize));
 	IRenderer* renderer = window.GetRenderer();
 
-	// ---- USD scene ----
-	const std::string scenePath = "/home/asuart/Repos/PixieRendering/assets/main_sponza/NewSponza_Main_USD_Yup_003.usda";
+	// ---- USD scene (unchanged) ----
+	const std::string scenePath =
+	    "/home/asuart/Repos/PixieRendering/assets/main_sponza/NewSponza_Main_USD_Yup_003.usda";
 	gAssetRoot = std::filesystem::path(scenePath).parent_path();
 
 	SceneData scene;
 	LoadScene(scene, renderer, scenePath);
-	scene.cameraUBO = renderer->CreateBuffer(BufferType::Uniform, sizeof(SceneData::CameraUBO));
+	scene.cameraUBO         = renderer->CreateBuffer(BufferType::Uniform, sizeof(SceneData::CameraUBO));
 	scene.cameraPositionUBO = renderer->CreateBuffer(BufferType::Uniform, sizeof(glm::vec4));
 
-	// ---- Present quad ----
+	// ---- Present quad (unchanged) ----
 	PresentMaterial presentMat;
 	MaterialHandle presentMatHandle = renderer->CreateMaterial(&presentMat);
 
 	Mesh fsTri;
 	fsTri.vertexes.resize(3);
 	fsTri.vertexes[0].position = { -1.0f, -1.0f, 0.0f };
-	fsTri.vertexes[1].position = { 3.0f, -1.0f, 0.0f };
-	fsTri.vertexes[2].position = { -1.0f, 3.0f, 0.0f };
+	fsTri.vertexes[1].position = {  3.0f, -1.0f, 0.0f };
+	fsTri.vertexes[2].position = { -1.0f,  3.0f, 0.0f };
 	fsTri.indexes = { 0, 1, 2 };
 	MeshHandle fsTriHandle = renderer->CreateMesh(&fsTri);
 
-	// ---- Blur ----
+	// ---- Blur (unchanged) ----
 	BlurComputeProgram blurProgram;
 	ComputeProgramHandle blurProgramHandle = renderer->CreateComputeProgram(&blurProgram);
 
-	// ---- Render graph ----
+	// ---- Render graph (unchanged) ----
 	RenderGraph rg(renderer);
 
 	RenderTargetDesc rtDesc;
 	rtDesc.format = TextureFormat::RGBA32f;
-	rtDesc.size = kRenderSize;
+	rtDesc.size   = kRenderSize;
 	rtDesc.hasDepth = true;
-	// rtDesc.storageImage = true;
 	rtDesc.finalUsage = ResourceUsage::Sampled;
 	RGResource sceneColor = rg.RegisterRenderTarget("SceneColor", rtDesc);
 
 	TextureDesc blurDesc;
 	blurDesc.format = TextureFormat::RGBA32f;
-	blurDesc.size = kRenderSize;
+	blurDesc.size   = kRenderSize;
 	blurDesc.mipLevels = 1;
 	blurDesc.storageImage = true;
 	RGResource blurColor = rg.RegisterTexture("BlurColor", blurDesc);
@@ -911,10 +919,14 @@ int main() {
 	rg.AddStage(std::make_unique<PresentStage>(blurColor, fsTriHandle, presentMatHandle));
 	rg.Compile();
 
-	// ---- ImGui ----
-	auto imgui = MakeImGuiBackend(window.GetRenderAPI());
-	if (imgui)
-		imgui->Init(window.GetGLFWWindow(), renderer);
+	// ========================================================================
+	// UI — docking ImGui via UIVulkan + UIWindow subclasses
+	// ========================================================================
+	std::unique_ptr<UIVulkan> ui = std::make_unique<UIVulkan>(&window, /*docking=*/true);
+
+	ui->AddWindow(new DemoWindow(ui.get(), renderer));
+	ui->AddWindow(new ApplicationStatsWindow(ui.get(), renderer));
+	ui->AddWindow(new TextureDisplayWindow(ui.get(), renderer, rg.GetResource(blurColor).texture));
 
 	// ---- Main loop ----
 	while (!window.GetShouldClose()) {
@@ -923,26 +935,25 @@ int main() {
 		if (!renderer->BeginFrame())
 			continue;
 
-		if (imgui) {
-			imgui->NewFrame();
-
-			ImGui::Begin("Debug");
-			ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
-			ImGui::Text("Camera: %.2f %.2f %.2f", scene.cam.position.x, scene.cam.position.y, scene.cam.position.z);
-			ImGui::Text("Draw items: %zu", scene.items.size());
-			ImGui::Text("Materials: %zu", scene.materials.size());
-			ImGui::End();
-
-			imgui->Render();
-		}
+		// Let each UIWindow update any offscreen resources (e.g.
+		// TextureDisplayWindow may re-render into its own FBO).
+		ui->OnBeforeDrawFrame();
 
 		UpdateCamera(scene, Time::deltaTime, window.GetResolution());
 		rg.Execute();
+
+		// ImGui draw data is submitted by UIVulkan through the present
+		// overlay hook, so this must be called after rg.Execute() and
+		// before EndFrame() while the present pass is alive.
+		ui->Draw();
+
 		renderer->EndFrame();
 	}
 
-	if (imgui)
-		imgui->Shutdown();
+	// Tear the UI down *before* clearing graph resources so ImGui no longer
+	// references textures / framebuffers the graph is about to Reset().
+	ui.reset();
+
 	renderer->WaitIdle();
 	rg.Clear();
 	return 0;
