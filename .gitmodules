@@ -10,26 +10,6 @@
 [submodule "dependencies/SPIRV-cross"]
 	path = dependencies/SPIRV-cross
 	url = https://github.com/KhronosGroup/SPIRV-Cross.git
-[submodule "dependencies/tinyobjloader"]
-	path = dependencies/tinyobjloader
-	url = https://github.com/tinyobjloader/tinyobjloader.git
-[submodule "dependencies/imgui"]
-	path = dependencies/imgui
-	url = https://github.com/ocornut/imgui.git
-	branch = docking
-[submodule "dependencies/stb"]
-	path = dependencies/stb
-	url = https://github.com/nothings/stb.git
-[submodule "dependencies/ufbx"]
-	path = dependencies/ufbx
-	url = https://github.com/ufbx/ufbx.git
-    branch = master
-[submodule "dependencies/entt"]
-	path = dependencies/entt
-	url = https://github.com/skypjack/entt.git
 [submodule "dependencies/meshoptimizer"]
 	path = dependencies/meshoptimizer
 	url = https://github.com/zeux/meshoptimizer.git
-[submodule "dependencies/OpenUSD"]
-	path = dependencies/OpenUSD
-	url = https://github.com/PixarAnimationStudios/OpenUSD.git
