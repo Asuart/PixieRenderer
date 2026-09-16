@@ -1,2 +1,1 @@
 add_subdirectory(SimpleScene)
-add_subdirectory(SponzaScene)

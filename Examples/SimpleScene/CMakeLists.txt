@@ -10,12 +10,8 @@ set_target_properties(SimpleScene PROPERTIES
 )
 
 target_include_directories(SimpleScene PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-target_include_directories(SimpleScene PRIVATE "${CMAKE_SOURCE_DIR}/dependencies/tinyobjloader/")
-target_include_directories(SimpleScene PRIVATE "${CMAKE_SOURCE_DIR}/dependencies/stb/")
 
-target_link_libraries(SimpleScene PRIVATE ufbx)
-target_link_libraries(SimpleScene PRIVATE EnTT::EnTT)
-target_link_libraries(SimpleScene PRIVATE PixieUIApplication)
+target_link_libraries(SimpleScene PRIVATE PixieRenderer)
 
 if (MSVC)
    target_compile_options(SimpleScene PRIVATE /W4)
@@ -29,9 +25,3 @@ foreach(_source IN ITEMS ${_source_list})
     string(REPLACE "../" "" _group_path "${_group_path}")
     source_group("${_group_path}" FILES "${_source}")
 endforeach()
-
-add_custom_command(TARGET SimpleScene POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-    "${CMAKE_SOURCE_DIR}/resources/models/cube"
-    "$<TARGET_FILE_DIR:SimpleScene>/cube"
-)
