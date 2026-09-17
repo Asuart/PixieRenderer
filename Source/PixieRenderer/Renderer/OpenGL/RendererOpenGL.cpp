@@ -255,6 +255,31 @@ void RendererOpenGL::BindTexture(
 	computeProgramEntry.BindTexture(std::string(name), arrayIndex);
 }
 
+void RendererOpenGL::BindTexture(
+    MaterialHandle materialHandle,
+    std::string_view name,
+    FrameBufferHandle frameBufferHandle,
+    uint32_t arrayIndex
+) {
+	OpenGLGraphicsProgram& materialEntry = m_resourceManager.GetMaterial(materialHandle);
+	OpenGLFrameBuffer& fb = m_resourceManager.GetFrameBuffer(frameBufferHandle);
+
+	fb.BindColorTexture(arrayIndex);
+	materialEntry.BindTexture(std::string(name), arrayIndex);
+}
+void RendererOpenGL::BindTexture(
+    ComputeProgramHandle programHandle,
+    std::string_view name,
+    FrameBufferHandle frameBufferHandle,
+    uint32_t arrayIndex
+) {
+	OpenGLComputeProgram& computeProgramEntry = m_resourceManager.GetComputeProgram(programHandle);
+	OpenGLFrameBuffer& fb = m_resourceManager.GetFrameBuffer(frameBufferHandle);
+
+	fb.BindColorImageTexture(arrayIndex);
+	computeProgramEntry.BindTexture(std::string(name), arrayIndex);
+}
+
 void RendererOpenGL::BindBuffer(
     MaterialHandle materialHandle,
     std::string_view name,

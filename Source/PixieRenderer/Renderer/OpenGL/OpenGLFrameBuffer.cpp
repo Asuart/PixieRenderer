@@ -1,5 +1,5 @@
-#include "PixieRenderer/pch.h"
 #include "OpenGLFrameBuffer.h"
+#include "PixieRenderer/pch.h"
 
 namespace PixieRenderer {
 
@@ -97,6 +97,15 @@ void OpenGLFrameBuffer::Bind() const {
 
 void OpenGLFrameBuffer::Unbind() const {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void OpenGLFrameBuffer::BindColorTexture(uint32_t index) {
+	glActiveTexture(static_cast<GLenum>(GL_TEXTURE0 + index));
+	glBindTexture(GL_TEXTURE_2D, m_texture);
+}
+
+void OpenGLFrameBuffer::BindColorImageTexture(uint32_t index) {
+	glBindImageTexture(static_cast<GLuint>(index), m_texture, 0, GL_FALSE, 0, GL_READ_WRITE, m_internalFormat);
 }
 
 } // namespace PixieRenderer

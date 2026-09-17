@@ -18,11 +18,14 @@ struct OpenGLFrameBuffer {
 	void Clear() const;
 	void Bind() const;
 	void Unbind() const;
+	void BindColorTexture(uint32_t index);
+	void BindColorImageTexture(uint32_t index);
 
   protected:
 	GLuint m_frameBuffer;
 	GLuint m_texture;
 	GLuint m_depth;
+	GLint m_internalFormat = GL_RGBA;
 	glm::ivec2 m_resolution;
 };
 

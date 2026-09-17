@@ -67,15 +67,13 @@ class RendererOpenGL : public IRenderer {
 	    std::string_view name,
 	    FrameBufferHandle frameBufferHandle,
 	    uint32_t arrayIndex = 0
-	) override {
-	}
+	) override;
 	void BindTexture(
 	    ComputeProgramHandle programHandle,
 	    std::string_view name,
 	    FrameBufferHandle frameBufferHandle,
 	    uint32_t arrayIndex = 0
-	) override {
-	}
+	) override;
 	void BindBuffer(
 	    MaterialHandle materialHandle,
 	    std::string_view name,

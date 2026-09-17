@@ -14,7 +14,7 @@ Image2D::Image2D(TextureFormat _format, glm::uvec2 _resolution) : format(_format
 
 void Image2D::Clear() {
 	for (size_t i = 0; i < pixels.size(); i++) {
-		pixels[i] = 0;
+		pixels[i] = std::byte(0);
 	}
 }
 

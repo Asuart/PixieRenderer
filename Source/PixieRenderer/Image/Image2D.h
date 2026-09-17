@@ -7,7 +7,7 @@
 namespace PixieRenderer {
 
 struct Image2D {
-	std::vector<uint8_t> pixels = {};
+	std::vector<std::byte> pixels = {};
 	glm::uvec2 resolution = { 0, 0 };
 	TextureFormat format = TextureFormat::Red8;
 	TextureFiltering minFiltering = TextureFiltering::Linear;

@@ -16,7 +16,7 @@ class IRenderer {
   public:
 	virtual ~IRenderer() = default;
 
-	virtual void SetPresentOverlayHook(std::function<void()> fn) {
+	virtual void SetPresentOverlayHook(std::function<void()>) {
 	}
 	virtual uint32_t GetSwapchainImageCount() const {
 		return 3;
