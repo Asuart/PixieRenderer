@@ -47,14 +47,9 @@ DescriptorType FromReflectDescriptorType(SpvReflectDescriptorType t) {
 		return DescriptorType::StorageBufferDynamic;
 	case SPV_REFLECT_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
 		return DescriptorType::InputAttachment;
-<<<<<<< Updated upstream
-	}
-	return DescriptorType::Unknown;
-=======
 	default:
 		return DescriptorType::Unknown;
 	}
->>>>>>> Stashed changes
 }
 
 bool IsUniformBuffer(DescriptorType t) {
