@@ -234,7 +234,7 @@ void PBRMaterial::Bind(IRenderer* renderer) {
 	} else {
 		renderer->UpdateBuffer(m_uniformBuffer, bytes);
 	}
-	renderer->BindBuffer(m_handle, "MaterialUBO", m_uniformBuffer);
+	renderer->BindBuffer(m_handle, "materialData", m_uniformBuffer);
 
 	if (m_albedoTexture)
 		renderer->BindTexture(m_handle, "albedoTexture", m_albedoTexture);

@@ -1,7 +1,7 @@
 #include "PixieRenderer/pch.h"
 #include "OpenGLGraphicsProgram.h"
 
-#include "ShaderCompilationOpenGL.h"
+#include "PixieRenderer/ShaderCompilation/ShaderCompilerOpenGL.h"
 
 namespace PixieRenderer {
 

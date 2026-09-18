@@ -22,19 +22,8 @@ target_link_libraries(PixieRenderer PRIVATE meshoptimizer)
 target_link_libraries(PixieRenderer PRIVATE glad)
 target_link_libraries(PixieRenderer PRIVATE glslang)
 target_link_libraries(PixieRenderer PRIVATE glslang-default-resource-limits)
+target_link_libraries(PixieRenderer PRIVATE spirv-reflect-static)
 target_link_libraries(PixieRenderer PRIVATE Vulkan::Vulkan)
-
-if(WIN32)
-    target_link_libraries(PixieRenderer PRIVATE 
-        debug "$ENV{VULKAN_SDK}/Lib/spirv-cross-cored.lib"
-        optimized "$ENV{VULKAN_SDK}/Lib/spirv-cross-core.lib"
-        
-        debug "$ENV{VULKAN_SDK}/Lib/spirv-cross-glsld.lib"
-        optimized "$ENV{VULKAN_SDK}/Lib/spirv-cross-glsl.lib"
-    )
-else()
-    target_link_libraries(PixieRenderer PRIVATE spirv-cross-core spirv-cross-glsl)
-endif()
 
 if (MSVC)
     target_compile_options(PixieRenderer PRIVATE /W4 /WX)

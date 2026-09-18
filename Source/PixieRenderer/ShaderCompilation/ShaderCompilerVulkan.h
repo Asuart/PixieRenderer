@@ -9,6 +9,11 @@
 
 namespace PixieRenderer {
 
+DescriptorType FromVkDescriptorType(VkDescriptorType t);
+VkDescriptorType ToVkDescriptorType(DescriptorType t);
+VkShaderStageFlagBits ToVkShaderStage(ShaderStage stage);
+VkShaderStageFlags ToVkShaderStageMask(ShaderStageMask mask);
+
 struct CompiledShader {
 	std::vector<VkShaderModule> stages;
 	std::vector<VkPipelineShaderStageCreateInfo> stagesCreateInfo;
@@ -16,8 +21,8 @@ struct CompiledShader {
 };
 
 struct CompiledComputeShader {
-	VkShaderModule stage;
-	VkPipelineShaderStageCreateInfo stageCreateInfo;
+	VkShaderModule stage = VK_NULL_HANDLE;
+	VkPipelineShaderStageCreateInfo stageCreateInfo{};
 	BindingsInfo bindingsInfo;
 };
 
@@ -26,14 +31,12 @@ class ShaderCompilerVulkan {
 	static CompiledShader CompileShader(
 	    VkDevice device,
 	    const char* vertexShaderSource,
-	    const char* framgentShaderSource
+	    const char* fragmentShaderSource
 	);
 	static CompiledComputeShader CompileComputeShader(VkDevice device, const char* source);
 
   private:
-	static SpirVBinary CompileShaderToSPIRV(glslang_stage_t stage, const char* shaderSource);
-	static VkShaderModule CreateShaderModule(VkDevice device, SpirVBinary binary);
-	static BindingsInfo ReflectSPIRV(const SpirVBinary& binary);
+	static VkShaderModule CreateShaderModule(VkDevice device, const SpirVBinary& binary);
 };
 
 } // namespace PixieRenderer

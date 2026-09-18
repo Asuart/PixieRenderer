@@ -117,7 +117,7 @@ static Mesh* CreateCubeMesh() {
 	return mesh;
 }
 
-int main(int argc, char** argv) {
+int main(int /*argc*/, char** /*argv*/) {
 	IWindow* window = PixieRenderer::CreateWindow("Rotating Cube", { 1280, 720 }, RenderAPI::Vulkan);
 
 	if (!window) {
@@ -158,7 +158,7 @@ int main(int argc, char** argv) {
 		camera.projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 1000.0f);
 
 		renderer->UpdateBuffer(cameraBuffer, std::as_bytes(std::span{ &camera, 1 }));
-		renderer->BindBuffer(materialHandle, "CameraUBO", cameraBuffer);
+		renderer->BindBuffer(materialHandle, "camera", cameraBuffer);
 
 		angle += deltaTime * 0.5f;
 		glm::mat4 model = glm::mat4(1.0f);
@@ -167,7 +167,7 @@ int main(int argc, char** argv) {
 		model = glm::rotate(model, angle * 0.3f, glm::vec3(0.0f, 0.0f, 1.0f));
 
 		renderer->UpdateBuffer(modelBuffer, std::as_bytes(std::span{ &model, 1 }));
-		renderer->BindBuffer(materialHandle, "ModelUBO", modelBuffer);
+		renderer->BindBuffer(materialHandle, "modelData", modelBuffer);
 
 		renderer->BeginRenderPass();
 		renderer->DrawMesh({ materialHandle, meshHandle });
