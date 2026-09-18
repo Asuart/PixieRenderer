@@ -5,7 +5,7 @@
 
 #include <vulkan/vulkan.hpp>
 
-#include "../ShaderCompiler.h"
+#include "ShaderCompiler.h"
 
 namespace PixieRenderer {
 

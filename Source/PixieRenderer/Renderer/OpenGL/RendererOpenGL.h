@@ -3,7 +3,7 @@
 
 #include "PixieRenderer/ResourceManager/ResourceManagerOpenGL.h"
 
-#include "ShaderCompilationOpenGL.h"
+#include "PixieRenderer/ShaderCompilation/ShaderCompilerOpenGL.h"
 #include "ViewportStateOpenGL.h"
 
 namespace PixieRenderer {

@@ -8,7 +8,7 @@
 #include <vulkan/vulkan.h>
 
 #include "PixieRenderer/ResourceManager/ResourceHandles.h"
-#include "ShaderCompilationVulkan.h"
+#include "PixieRenderer/ShaderCompilation/ShaderCompilerVulkan.h"
 #include "VulkanBuffer.h"
 #include "VulkanTexture.h"
 

@@ -1,8 +1,7 @@
 #pragma once
-
-#include "ShaderCompilationVulkan.h"
-#include "VulkanProgram.h"
 #include <string>
+
+#include "VulkanProgram.h"
 
 namespace PixieRenderer {
 

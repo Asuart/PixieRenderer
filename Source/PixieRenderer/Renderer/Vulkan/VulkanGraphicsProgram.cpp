@@ -1,7 +1,6 @@
 #include "PixieRenderer/pch.h"
 #include "VulkanGraphicsProgram.h"
 
-#include "ShaderCompilationVulkan.h"
 #include "VulkanConfig.h"
 #include "VulkanDevice.h"
 #include "VulkanMesh.h"

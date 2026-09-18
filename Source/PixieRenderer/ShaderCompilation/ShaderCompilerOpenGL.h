@@ -1,8 +1,8 @@
 #pragma once
 #include <glad/glad.h>
 
-#include "OpenGLGraphicsProgram.h"
-#include "OpenGLComputeProgram.h"
+#include "Pixierenderer/Renderer/OpenGL/OpenGLGraphicsProgram.h"
+#include "Pixierenderer/Renderer/OpenGL/OpenGLComputeProgram.h"
 
 namespace PixieRenderer {
 
