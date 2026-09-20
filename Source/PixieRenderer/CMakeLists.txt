@@ -17,13 +17,13 @@ target_include_directories(PixieRenderer PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../
 target_include_directories(PixieRenderer PUBLIC "${glm_SOURCE_DIR}")
 
 target_link_libraries(PixieRenderer PUBLIC glfw)
+target_link_libraries(PixieRenderer PUBLIC glad)
+target_link_libraries(PixieRenderer PUBLIC Vulkan::Vulkan)
 
 target_link_libraries(PixieRenderer PRIVATE meshoptimizer)
-target_link_libraries(PixieRenderer PRIVATE glad)
 target_link_libraries(PixieRenderer PRIVATE glslang)
 target_link_libraries(PixieRenderer PRIVATE glslang-default-resource-limits)
 target_link_libraries(PixieRenderer PRIVATE spirv-reflect-static)
-target_link_libraries(PixieRenderer PRIVATE Vulkan::Vulkan)
 
 if (MSVC)
     target_compile_options(PixieRenderer PRIVATE /W4 /WX)
