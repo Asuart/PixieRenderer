@@ -15,7 +15,7 @@ class IRenderStage;
 
 class RenderGraph {
   public:
-	explicit RenderGraph(IRenderer* renderer);
+	explicit RenderGraph(std::shared_ptr<IRenderer> renderer);
 	~RenderGraph();
 
 	RenderGraph(const RenderGraph&) = delete;
@@ -88,7 +88,7 @@ class RenderGraph {
 	};
 
   public:
-	IRenderer* m_renderer = nullptr;
+	std::shared_ptr<IRenderer> m_renderer = nullptr;
 	std::vector<Resource> m_resources;
 	std::vector<StageEntry> m_stages;
 	std::vector<int> m_sortedOrder;

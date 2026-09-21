@@ -548,6 +548,9 @@ void RendererVulkan::BindTexture(
     TextureHandle textureHandle,
     uint32_t arrayIndex
 ) {
+	if (!materialHandle || !textureHandle) {
+		return;
+	}
 	VulkanGraphicsProgram& program = m_resourceManager.GetGraphicsProgram(materialHandle);
 	VulkanTexture& texture = m_resourceManager.GetTexture(textureHandle);
 	program.BindTexture(name, texture, m_currentFrame, arrayIndex);
@@ -559,6 +562,9 @@ void RendererVulkan::BindTexture(
     TextureHandle textureHandle,
     uint32_t arrayIndex
 ) {
+	if (!programHandle || !textureHandle) {
+		return;
+	}
 	VulkanComputeProgram& prog = m_resourceManager.GetComputeProgram(programHandle);
 	VulkanTexture& texture = m_resourceManager.GetTexture(textureHandle);
 	prog.BindTexture(name, texture, m_currentFrame, arrayIndex);
@@ -652,8 +658,9 @@ void RendererVulkan::UseResource(TextureHandle h, ResourceUsage u) {
 }
 
 void RendererVulkan::UseResource(FrameBufferHandle h, ResourceUsage u) {
-	if (!h)
-		return; // Present target — пропускаем
+	if (!h) {
+		return;
+	}
 
 	auto& state = m_resourceStates[h.GetId()];
 	ResourceState want = ToVkState(u);

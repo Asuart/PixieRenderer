@@ -13,7 +13,7 @@
 
 namespace PixieRenderer {
 
-RenderGraph::RenderGraph(IRenderer* r) : m_renderer(r) {
+RenderGraph::RenderGraph(std::shared_ptr<IRenderer> r) : m_renderer(r) {
 }
 
 RenderGraph::~RenderGraph() {

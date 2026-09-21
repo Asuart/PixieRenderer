@@ -216,7 +216,7 @@ void PBRMaterial::SetRoughnessTexture(TextureHandle texture) {
 	m_roughnessTexture = texture;
 }
 
-void PBRMaterial::Bind(IRenderer* renderer) {
+void PBRMaterial::Bind(std::shared_ptr<IRenderer> renderer) {
 	struct PBRMaterialProps {
 		glm::vec4 albedo;
 		float metallic;

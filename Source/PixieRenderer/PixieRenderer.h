@@ -5,11 +5,5 @@
 #include <glm/glm.hpp>
 
 #include "Renderer/RenderAPI.h"
-
-namespace PixieRenderer {
-
-class IWindow;
-
-IWindow* CreateWindow(std::string_view name, glm::uvec2 resolution, RenderAPI api);
-
-} // namespace PixieRenderer
+#include "Window/IWindow.h"
+#include "Renderer/IRenderer.h"

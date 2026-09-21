@@ -25,7 +25,7 @@ class PBRMaterial : public IMaterial {
 	void SetMetallicTexture(TextureHandle texture);
 	void SetRoughnessTexture(TextureHandle texture);
 
-	void Bind(IRenderer* renderer) override;
+	void Bind(std::shared_ptr<IRenderer> renderer) override;
 
   private:
 	glm::vec3 m_albedo = glm::vec3(1.0f, 1.0f, 1.0f);

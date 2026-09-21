@@ -18,7 +18,7 @@ class IMaterial {
 	MaterialHandle GetHandle() const;
 	void SetHandle(MaterialHandle handle);
 
-	virtual void Bind(IRenderer*);
+	virtual void Bind(std::shared_ptr<IRenderer>);
 
   protected:
 	MaterialHandle m_handle;

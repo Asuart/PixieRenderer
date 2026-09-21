@@ -28,7 +28,7 @@ WindowOpenGL::WindowOpenGL(std::string_view name, glm::ivec2 resolution) : IWind
 		}
 	});
 
-	m_renderer = new RendererOpenGL(this);
+	m_renderer = std::make_shared<RendererOpenGL>(this);
 }
 
 WindowOpenGL::~WindowOpenGL() {

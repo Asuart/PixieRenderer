@@ -19,7 +19,7 @@ WindowVulkan::WindowVulkan(std::string_view name, glm::ivec2 resolution)
 		}
 	});
 
-	m_renderer = new RendererVulkan(this);
+	m_renderer = std::make_shared<RendererVulkan>(this);
 }
 
 WindowVulkan::~WindowVulkan() {
@@ -46,10 +46,6 @@ void WindowVulkan::CreateSurface(VkInstance vkInstance, VkSurfaceKHR& vkSurface)
 	if (glfwCreateWindowSurface(vkInstance, m_window, nullptr, &vkSurface) != VK_SUCCESS) {
 		throw "failed to create window surface!";
 	}
-}
-
-RendererVulkan* WindowVulkan::GetRendererVulkan() {
-	return reinterpret_cast<RendererVulkan*>(m_renderer);
 }
 
 } // namespace PixieRenderer

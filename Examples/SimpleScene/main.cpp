@@ -118,14 +118,14 @@ static Mesh* CreateCubeMesh() {
 }
 
 int main(int /*argc*/, char** /*argv*/) {
-	IWindow* window = PixieRenderer::CreateWindow("Rotating Cube", { 1280, 720 }, RenderAPI::Vulkan);
+	std::unique_ptr<IWindow> window = IWindow::Create("Rotating Cube", { 1280, 720 }, RenderAPI::Vulkan);
 
 	if (!window) {
 		std::cerr << "Failed to create window\n";
 		return 1;
 	}
 
-	IRenderer* renderer = window->GetRenderer();
+	std::shared_ptr<IRenderer> renderer = window->GetRenderer();
 
 	Mesh* cubeMesh = CreateCubeMesh();
 	MeshHandle meshHandle = renderer->CreateMesh(cubeMesh);
@@ -176,8 +176,6 @@ int main(int /*argc*/, char** /*argv*/) {
 		renderer->EndFrame();
 		window->SwapBuffers();
 	}
-
-	delete window;
 
 	return 0;
 }

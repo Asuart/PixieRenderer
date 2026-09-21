@@ -15,7 +15,7 @@ void IMaterial::SetHandle(MaterialHandle handle) {
 	m_handle = handle;
 }
 
-void IMaterial::Bind(IRenderer*) {
+void IMaterial::Bind(std::shared_ptr<IRenderer>) {
 }
 
 } // namespace PixieRenderer

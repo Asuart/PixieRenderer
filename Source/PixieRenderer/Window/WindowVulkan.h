@@ -16,8 +16,6 @@ class WindowVulkan : public IWindow {
 
 	std::vector<const char*> GetRequiredExtensions();
 	void CreateSurface(VkInstance vkInstance, VkSurfaceKHR& vkSurface);
-
-	RendererVulkan* GetRendererVulkan();
 };
 
 } // namespace PixieRenderer

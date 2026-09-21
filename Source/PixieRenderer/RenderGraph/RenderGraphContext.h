@@ -7,9 +7,9 @@ class IRenderer;
 
 class RenderGraphContext {
   public:
-	RenderGraphContext(class RenderGraph& graph, IRenderer* renderer, int stageIndex);
+	RenderGraphContext(class RenderGraph& graph, std::shared_ptr<IRenderer> renderer, int stageIndex);
 
-	IRenderer* GetRenderer() const {
+	std::shared_ptr<IRenderer> GetRenderer() const {
 		return m_renderer;
 	}
 
@@ -25,7 +25,7 @@ class RenderGraphContext {
   private:
 	friend class RenderGraph;
 	RenderGraph& m_graph;
-	IRenderer* m_renderer;
+	std::shared_ptr<IRenderer> m_renderer;
 	int m_stageIndex;
 };
 
