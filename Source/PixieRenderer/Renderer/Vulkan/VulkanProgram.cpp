@@ -60,7 +60,7 @@ VkDescriptorType VulkanProgram::GetDescriptorType(std::string_view name) const {
 	if (it == m_bindingsByName.end()) {
 		throw std::runtime_error("Binding not found: " + std::string(name));
 	}
-	return static_cast<VkDescriptorType>(it->second.type);
+	return ToVkDescriptorType(it->second.type);
 }
 
 void VulkanProgram::BindBuffer(
@@ -89,7 +89,7 @@ void VulkanProgram::BindBuffer(
 	write.dstBinding = it->second.binding;
 	write.dstArrayElement = 0;
 	write.descriptorCount = 1;
-	write.descriptorType = static_cast<VkDescriptorType>(it->second.type);
+	write.descriptorType = ToVkDescriptorType(it->second.type);
 	write.pBufferInfo = &info;
 
 	vkUpdateDescriptorSets(m_device.GetDevice(), 1, &write, 0, nullptr);
@@ -118,7 +118,7 @@ void VulkanProgram::BindTextureView(
 	if (it == m_bindingsByName.end())
 		return;
 
-	const VkDescriptorType type = static_cast<VkDescriptorType>(it->second.type);
+	const VkDescriptorType type = ToVkDescriptorType(it->second.type);
 
 	VkDescriptorImageInfo info{};
 	if (type == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE) {
@@ -152,9 +152,9 @@ void VulkanProgram::CreateDescriptorSetLayout() {
 	for (const auto& b : m_bindingsInfo.bindings) {
 		VkDescriptorSetLayoutBinding binding{};
 		binding.binding = b.binding;
-		binding.descriptorType = static_cast<VkDescriptorType>(b.type);
+		binding.descriptorType = ToVkDescriptorType(b.type);
 		binding.descriptorCount = b.count;
-		binding.stageFlags = b.stageFlags;
+		binding.stageFlags = ToVkShaderStageMask(b.stageFlags);
 		layoutBindings.push_back(binding);
 	}
 
@@ -173,7 +173,7 @@ void VulkanProgram::CreateDescriptorPool() {
 
 	std::unordered_map<VkDescriptorType, uint32_t> poolSizeCounts;
 	for (const auto& b : m_bindingsInfo.bindings) {
-		VkDescriptorType type = static_cast<VkDescriptorType>(b.type);
+		VkDescriptorType type = ToVkDescriptorType(b.type);
 		poolSizeCounts[type] += b.count * cMaxFramesInFlight;
 	}
 
@@ -221,7 +221,7 @@ void VulkanProgram::CreatePipelineLayout() {
 
 	VkPushConstantRange pushRange{};
 	if (m_bindingsInfo.pushConstantSize > 0 && m_bindingsInfo.pushConstantStages != 0) {
-		pushRange.stageFlags = m_bindingsInfo.pushConstantStages;
+		pushRange.stageFlags = ToVkShaderStageMask(m_bindingsInfo.pushConstantStages);
 		pushRange.offset = 0;
 		pushRange.size = m_bindingsInfo.pushConstantSize;
 

@@ -3,7 +3,7 @@
 
 namespace PixieRenderer {
 
-enum class TextureType : int32_t {
+enum class TextureType : uint32_t {
 	Texture1D,
 	Texture1DArray,
 	Texture2D,
@@ -13,14 +13,14 @@ enum class TextureType : int32_t {
 	CubemapArray
 };
 
-enum class TextureWrap : int32_t {
+enum class TextureWrap : uint32_t {
 	Repeat,
 	MirroredRepeat,
 	ClampToEdge,
 	ClampToBorder,
 };
 
-enum class TextureFiltering : int32_t {
+enum class TextureFiltering : uint32_t {
 	Nearest,
 	Linear,
 	NearestMipmapNearest,
@@ -29,6 +29,6 @@ enum class TextureFiltering : int32_t {
 	LinearMipmapLinear,
 };
 
-enum class TextureFormat : int32_t { Red8, RGBA8, Red32f, RGBA32f };
+enum class TextureFormat : uint32_t { Red8, RGBA8, Red32f, RGBA32f };
 
 } // namespace PixieRenderer

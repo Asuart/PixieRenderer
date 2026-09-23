@@ -88,34 +88,52 @@ void ResourceManagerVulkan::Release(uint64_t id) {
 	}
 }
 
-VulkanTexture& ResourceManagerVulkan::GetTexture(TextureHandle handle) {
+VulkanTexture* ResourceManagerVulkan::GetTexture(TextureHandle handle) {
 	auto [type, index] = DecodeId(handle.GetId());
-	return *m_textures[index].resource;
+	if (index >= m_textures.size()) {
+		return nullptr;
+	}
+	return m_textures[index].resource.get();
 }
 
-VulkanMesh& ResourceManagerVulkan::GetMesh(MeshHandle handle) {
+VulkanMesh* ResourceManagerVulkan::GetMesh(MeshHandle handle) {
 	auto [type, index] = DecodeId(handle.GetId());
-	return *m_meshes[index].resource;
+	if (index >= m_meshes.size()) {
+		return nullptr;
+	}
+	return m_meshes[index].resource.get();
 }
 
-VulkanGraphicsProgram& ResourceManagerVulkan::GetGraphicsProgram(MaterialHandle handle) {
+VulkanGraphicsProgram* ResourceManagerVulkan::GetGraphicsProgram(MaterialHandle handle) {
 	auto [type, index] = DecodeId(handle.GetId());
-	return *m_graphicsPrograms[index].resource;
+	if (index >= m_graphicsPrograms.size()) {
+		return nullptr;
+	}
+	return m_graphicsPrograms[index].resource.get();
 }
 
-VulkanComputeProgram& ResourceManagerVulkan::GetComputeProgram(ComputeProgramHandle handle) {
+VulkanComputeProgram* ResourceManagerVulkan::GetComputeProgram(ComputeProgramHandle handle) {
 	auto [type, index] = DecodeId(handle.GetId());
-	return *m_computePrograms[index].resource;
+	if (index >= m_computePrograms.size()) {
+		return nullptr;
+	}
+	return m_computePrograms[index].resource.get();
 }
 
-VulkanBuffer& ResourceManagerVulkan::GetBuffer(BufferHandle handle) {
+VulkanBuffer* ResourceManagerVulkan::GetBuffer(BufferHandle handle) {
 	auto [type, index] = DecodeId(handle.GetId());
-	return *m_buffers[index].resource;
+	if (index >= m_buffers.size()) {
+		return nullptr;
+	}
+	return m_buffers[index].resource.get();
 }
 
-VulkanFrameBuffer& ResourceManagerVulkan::GetFrameBuffer(FrameBufferHandle handle) {
+VulkanFrameBuffer* ResourceManagerVulkan::GetFrameBuffer(FrameBufferHandle handle) {
 	auto [type, index] = DecodeId(handle.GetId());
-	return *m_frameBuffers[index].resource;
+	if (index >= m_frameBuffers.size()) {
+		return nullptr;
+	}
+	return m_frameBuffers[index].resource.get();
 }
 
 std::vector<ResourceEntry<VulkanMesh>>& ResourceManagerVulkan::GetMeshes() {

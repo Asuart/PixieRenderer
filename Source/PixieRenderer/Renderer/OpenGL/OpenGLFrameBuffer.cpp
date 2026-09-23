@@ -1,6 +1,44 @@
 #include "OpenGLFrameBuffer.h"
 #include "PixieRenderer/pch.h"
 
+#include "PixieRenderer/LogCategories.h"
+
+namespace {
+
+std::string getFramebufferStatusString(GLenum status) {
+	switch (status) {
+	case GL_FRAMEBUFFER_UNDEFINED:
+		return "GL_FRAMEBUFFER_UNDEFINED (The specified framebuffer is the default read or draw framebuffer, but the "
+		       "default framebuffer does not exist)";
+	case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+		return "GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT (One or more framebuffer attachment points are incomplete)";
+	case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+		return "GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT (The framebuffer does not have at least one image "
+		       "attached to it)";
+	case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
+		return "GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER (The value of GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE is GL_NONE "
+		       "for any color attachment point(s) named by GL_DRAW_BUFFERi)";
+	case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
+		return "GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER (GL_READ_BUFFER is assigned an attachment point that has no "
+		       "image attached)";
+	case GL_FRAMEBUFFER_UNSUPPORTED:
+		return "GL_FRAMEBUFFER_UNSUPPORTED (The combination of internal formats of the attached images violates an "
+		       "implementation-dependent set of restrictions)";
+	case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
+		return "GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE (The GL_TEXTURE_SAMPLES or GL_RENDERBUFFER_SAMPLES value is not "
+		       "the same for all attached attachments)";
+	case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
+		return "GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS (Any framebuffer attachment is layered, and any populated "
+		       "attachment is not layered, or all populated attachments are not from textures of the same target)";
+	case 0:
+		return "An error occurred during status check (Returned 0, possibly context-related)";
+	default:
+		return "UNKNOWN_FRAMEBUFFER_STATUS (Code: " + std::to_string(status) + ")";
+	}
+}
+
+} // namespace
+
 namespace PixieRenderer {
 
 OpenGLFrameBuffer::OpenGLFrameBuffer(glm::ivec2 resolution) : m_resolution(resolution) {
@@ -31,8 +69,9 @@ OpenGLFrameBuffer::OpenGLFrameBuffer(glm::ivec2 resolution) : m_resolution(resol
 	);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, m_depth, 0);
 
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-		throw "Failed to initializa FrameBuffer";
+	GLenum fbStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	if (fbStatus != GL_FRAMEBUFFER_COMPLETE) {
+		Log::Error(LogCat::glFrameBuffer, "Failed to initialize FrameBuffer: {}", getFramebufferStatusString(fbStatus));
 	}
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);

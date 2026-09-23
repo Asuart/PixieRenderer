@@ -4,7 +4,10 @@
 #include <cstring>
 #include <stdexcept>
 
+#include <vulkan/vk_enum_string_helper.h>
+
 #include "DebugVulkan.h"
+#include "PixieRenderer/LogCategories.h"
 #include "PixieRenderer/Window/WindowVulkan.h"
 #include "VulkanConfig.h"
 
@@ -98,12 +101,14 @@ void RendererVulkan::InitVulkan() {
 
 	windowVulkan->CreateSurface(m_instance.GetInstance(), m_surface);
 	if (m_surface == VK_NULL_HANDLE) {
-		throw std::runtime_error("failed to create surface!");
+		Log::Critical(LogCat::RendererVulkan, "Failed to create surface.");
+		throw std::runtime_error("Failed to create surface.");
 	}
 
 	VkPhysicalDevice physicalDevice = m_instance.PickPhysicalDevice(m_surface);
 	if (physicalDevice == VK_NULL_HANDLE) {
-		throw std::runtime_error("failed to find a suitable GPU!");
+		Log::Critical(LogCat::RendererVulkan, "Failed to find a suitable GPU.");
+		throw std::runtime_error("Failed to find a suitable GPU.");
 	}
 
 	const std::vector<const char*>& deviceExtensions = m_instance.GetDeviceExtensions();
@@ -138,6 +143,7 @@ void RendererVulkan::InitVulkan() {
 
 void RendererVulkan::Cleanup() {
 	if (m_device.GetDevice() == VK_NULL_HANDLE) {
+		Log::Warning(LogCat::RendererVulkan, "Trying to cleanup without specified device.");
 		return;
 	}
 
@@ -194,16 +200,25 @@ bool RendererVulkan::BeginFrame() {
 	if (result == VK_ERROR_OUT_OF_DATE_KHR) {
 		RecreateSwapChain();
 		return false;
-	} else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
-		throw std::runtime_error("Failed to acquire swap chain image!");
 	}
 
-	vkResetCommandBuffer(m_commandBuffers[m_currentFrame], 0);
+	if (result == VK_SUBOPTIMAL_KHR) {
+		m_swapchainNeedsRecreate = true;
+	} else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+		Log::Error(LogCat::RendererVulkan, "vkAcquireNextImageKHR failed: {}", string_VkResult(result));
+		return false;
+	}
+
+	if (vkResetCommandBuffer(m_commandBuffers[m_currentFrame], 0) != VK_SUCCESS) {
+		Log::Warning(LogCat::RendererVulkan, "Failed to reset primary command buffer.");
+	}
+
 	VkCommandBufferBeginInfo beginInfo{};
 	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 	if (vkBeginCommandBuffer(m_commandBuffers[m_currentFrame], &beginInfo) != VK_SUCCESS) {
-		throw std::runtime_error("Failed to begin command buffer!");
+		Log::Error(LogCat::RendererVulkan, "Failed to begin primary command buffer.");
+		return false;
 	}
 
 	m_currentRenderPass = nullptr;
@@ -214,11 +229,13 @@ bool RendererVulkan::BeginFrame() {
 
 void RendererVulkan::EndFrame() {
 	if (m_currentRenderPass) {
-		throw std::runtime_error("EndFrame called with an open render pass. Call EndRenderPass first.");
+		Log::Error(LogCat::RendererVulkan, "EndFrame called with an open render pass. Call EndRenderPass first.");
+		EndRenderPass();
 	}
 
 	if (vkEndCommandBuffer(m_commandBuffers[m_currentFrame]) != VK_SUCCESS) {
-		throw std::runtime_error("Failed to record command buffer!");
+		Log::Error(LogCat::RendererVulkan, "Failed to record primary command buffer.");
+		return;
 	}
 
 	VkSemaphore waitSemaphores[] = { m_imageAvailableSemaphores[m_currentFrame] };
@@ -236,7 +253,8 @@ void RendererVulkan::EndFrame() {
 	submitInfo.pSignalSemaphores = signalSemaphores;
 
 	if (vkQueueSubmit(m_device.GetGraphicsQueue(), 1, &submitInfo, m_inFlightFences[m_currentFrame]) != VK_SUCCESS) {
-		throw std::runtime_error("Failed to submit draw command buffer!");
+		Log::Error(LogCat::RendererVulkan, "Failed to submit draw primary command buffer.");
+		return;
 	}
 
 	VkPresentInfoKHR presentInfo{};
@@ -254,15 +272,17 @@ void RendererVulkan::EndFrame() {
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
 		m_swapchainNeedsRecreate = true;
 	} else if (result != VK_SUCCESS) {
-		throw std::runtime_error("Failed to present swap chain image!");
+		Log::Error(LogCat::RendererVulkan, "Failed to present swap chain image.");
 	}
 
 	m_currentFrame = (m_currentFrame + 1) % cMaxFramesInFlight;
 }
 
 void RendererVulkan::BeginRenderPass(FrameBufferHandle handle) {
-	if (m_currentRenderPass)
+	if (m_currentRenderPass) {
+		Log::Error(LogCat::RendererVulkan, "New render pass started before previous ended.");
 		EndRenderPass();
+	}
 
 	m_activeFrameBuffer = handle;
 
@@ -275,12 +295,12 @@ void RendererVulkan::BeginRenderPass(FrameBufferHandle handle) {
 	if (m_activeFrameBuffer) {
 		UseResource(m_activeFrameBuffer, ResourceUsage::ColorAttachment);
 
-		VulkanFrameBuffer& fb = m_resourceManager.GetFrameBuffer(m_activeFrameBuffer);
-		framebuffer = fb.GetFrameBuffer();
-		extent = fb.GetExtent();
-		rp = fb.GetRenderPassObject();
-		viewport = fb.GetViewport();
-		scissor = fb.GetScissor();
+		VulkanFrameBuffer* fb = m_resourceManager.GetFrameBuffer(m_activeFrameBuffer);
+		framebuffer = fb->GetFrameBuffer();
+		extent = fb->GetExtent();
+		rp = fb->GetRenderPassObject();
+		viewport = fb->GetViewport();
+		scissor = fb->GetScissor();
 	} else {
 		m_swapchain->Transition(
 		    m_commandBuffers[m_currentFrame],
@@ -305,13 +325,16 @@ void RendererVulkan::BeginRenderPass(FrameBufferHandle handle) {
 }
 
 void RendererVulkan::EndRenderPass() {
-	if (!m_currentRenderPass)
+	if (!m_currentRenderPass) {
+		Log::Warning(LogCat::RendererVulkan, "EndRenderPass called without active render pass.");
 		return;
+	}
 
 	m_currentRenderPass->Execute(m_resourceManager.GetMeshes(), m_resourceManager.GetGraphicsPrograms());
 
-	if (!m_activeFrameBuffer && m_overlayHook)
+	if (!m_activeFrameBuffer && m_overlayHook) {
 		m_overlayHook();
+	}
 
 	m_currentRenderPass->End();
 	debug_isInRenderPass = false;
@@ -333,14 +356,19 @@ void RendererVulkan::SetRenderResolution(glm::uvec2 resolution) {
 	if (m_surfaceResolution == resolution) {
 		return;
 	}
+
 	m_surfaceResolution = resolution;
 	m_swapchainNeedsRecreate = true;
+
+	Log::Info(LogCat::RendererVulkan, "Render resolution changed. x: {}, y: {}", resolution.x, resolution.y);
 }
 
 void RendererVulkan::SetViewport(ScreenRect rect) {
 	if (!m_currentRenderPass) {
-		throw std::runtime_error("SetViewport called outside of a render pass.");
+		Log::Error(LogCat::RendererVulkan, "SetViewport called outside of a render pass.");
+		return;
 	}
+
 	VkViewport vp{};
 	vp.x = static_cast<float>(rect.origin.x);
 	vp.y = static_cast<float>(rect.origin.y);
@@ -350,8 +378,8 @@ void RendererVulkan::SetViewport(ScreenRect rect) {
 	vp.maxDepth = 1.0f;
 
 	if (m_activeFrameBuffer) {
-		VulkanFrameBuffer& fb = m_resourceManager.GetFrameBuffer(m_activeFrameBuffer);
-		fb.SetViewport(vp);
+		VulkanFrameBuffer* fb = m_resourceManager.GetFrameBuffer(m_activeFrameBuffer);
+		fb->SetViewport(vp);
 	} else {
 		m_presentViewport = vp;
 		m_presentViewportDirty = true;
@@ -360,7 +388,8 @@ void RendererVulkan::SetViewport(ScreenRect rect) {
 
 void RendererVulkan::SetScissor(ScreenRect rect) {
 	if (!m_currentRenderPass) {
-		throw std::runtime_error("SetScissor called outside of a render pass.");
+		Log::Error(LogCat::RendererVulkan, "SetScissor called outside of a render pass.");
+		return;
 	}
 
 	VkRect2D sc{};
@@ -368,8 +397,8 @@ void RendererVulkan::SetScissor(ScreenRect rect) {
 	sc.extent = { rect.size.x, rect.size.y };
 
 	if (m_activeFrameBuffer) {
-		VulkanFrameBuffer& fb = m_resourceManager.GetFrameBuffer(m_activeFrameBuffer);
-		fb.SetScissor(sc);
+		VulkanFrameBuffer* fb = m_resourceManager.GetFrameBuffer(m_activeFrameBuffer);
+		fb->SetScissor(sc);
 	} else {
 		m_presentScissor = sc;
 		m_presentScissorDirty = true;
@@ -381,13 +410,28 @@ MeshHandle RendererVulkan::CreateMesh(const Mesh* mesh) {
 }
 
 void RendererVulkan::UpdateMesh(MeshHandle handle, const Mesh* mesh) {
-	VulkanMesh& meshEntry = m_resourceManager.GetMesh(handle);
-	meshEntry.Load(mesh);
+	if (!handle) {
+		Log::Warning(LogCat::RendererVulkan, "Empty handle passed to UpdateMesh.");
+		return;
+	}
+	VulkanMesh* meshEntry = m_resourceManager.GetMesh(handle);
+	meshEntry->Load(mesh);
 }
 
 void RendererVulkan::DrawMesh(DrawRequest request) {
 	if (!m_currentRenderPass) {
-		throw std::runtime_error("DrawMesh called outside of a render pass. Call BeginRenderPass first.");
+		Log::Error(LogCat::RendererVulkan, "DrawMesh called outside of a render pass. Call BeginRenderPass first.");
+		return;
+	}
+
+	if (!request.mesh) {
+		Log::Warning(LogCat::RendererVulkan, "Empty mesh handle passed to DrawMesh.");
+		return;
+	}
+
+	if (!request.material) {
+		Log::Warning(LogCat::RendererVulkan, "Empty material handle passed to DrawMesh.");
+		return;
 	}
 
 	RenderRequest req{};
@@ -396,9 +440,9 @@ void RendererVulkan::DrawMesh(DrawRequest request) {
 
 	if (!request.inlineData.empty()) {
 		if (request.inlineData.size() > cMaxRequestDataSize) {
-			throw std::runtime_error("inlineData exceeds push constant capacity");
+			Log::Warning(LogCat::RendererVulkan, "DrawMesh inlineData exceeds push constant capacity. data is cutoff");
 		}
-		std::memcpy(req.pushConstants.data(), request.inlineData.data(), request.inlineData.size());
+		std::memcpy(req.pushConstants.data(), request.inlineData.data(), cMaxRequestDataSize);
 		req.pushConstantsSize = static_cast<uint32_t>(request.inlineData.size());
 	}
 
@@ -407,10 +451,20 @@ void RendererVulkan::DrawMesh(DrawRequest request) {
 
 void RendererVulkan::DispatchComputeProgram(DispatchRequest request) {
 	if (m_currentRenderPass) {
-		throw std::runtime_error("DispatchComputeProgram called inside a render pass. Call EndRenderPass first.");
+		Log::Error(
+		    LogCat::RendererVulkan,
+		    "DispatchComputeProgram called inside a render pass. Call EndRenderPass first."
+		);
+		return;
 	}
-	VulkanComputeProgram& prog = m_resourceManager.GetComputeProgram(request.program);
-	prog.Dispatch(
+
+	if (!request.program) {
+		Log::Warning(LogCat::RendererVulkan, "Empty program handle passed to DispatchComputeProgram.");
+		return;
+	}
+
+	VulkanComputeProgram* prog = m_resourceManager.GetComputeProgram(request.program);
+	prog->Dispatch(
 	    m_commandBuffers[m_currentFrame],
 	    m_currentFrame,
 	    request.x,
@@ -429,14 +483,22 @@ FrameBufferHandle RendererVulkan::CreateFrameBuffer(glm::uvec2 resolution, Textu
 }
 
 void RendererVulkan::SetFrameBufferResolution(FrameBufferHandle handle, glm::uvec2 resolution) {
-	VulkanFrameBuffer& fb = m_resourceManager.GetFrameBuffer(handle);
-	fb.Resize({ resolution.x, resolution.y });
+	if (!handle) {
+		Log::Warning(LogCat::RendererVulkan, "Empty handle passed to SetFrameBufferResolution.");
+		return;
+	}
+	VulkanFrameBuffer* fb = m_resourceManager.GetFrameBuffer(handle);
+	fb->Resize({ resolution.x, resolution.y });
 	m_resourceStates.erase(handle.GetId());
 }
 
 glm::uvec2 RendererVulkan::GetFrameBufferResolution(FrameBufferHandle handle) {
-	VulkanFrameBuffer& fb = m_resourceManager.GetFrameBuffer(handle);
-	VkExtent2D extent = fb.GetExtent();
+	if (!handle) {
+		Log::Warning(LogCat::RendererVulkan, "Empty handle passed to GetFrameBufferResolution.");
+		return { 0, 0 };
+	}
+	VulkanFrameBuffer* fb = m_resourceManager.GetFrameBuffer(handle);
+	VkExtent2D extent = fb->GetExtent();
 	return { extent.width, extent.height };
 }
 
@@ -445,68 +507,97 @@ TextureHandle RendererVulkan::CreateTexture(const Image2D* image) {
 }
 
 void RendererVulkan::UpdateTexture(TextureHandle handle, const Image2D* image) {
-	VulkanTexture& textureEntry = m_resourceManager.GetTexture(handle);
-	textureEntry.Load(image);
+	if (!handle) {
+		Log::Warning(LogCat::RendererVulkan, "Empty handle passed to UpdateTexture.");
+		return;
+	}
+	VulkanTexture* textureEntry = m_resourceManager.GetTexture(handle);
+	textureEntry->Load(image);
 }
 
 glm::uvec2 RendererVulkan::GetTextureResolution(TextureHandle handle) {
-	VulkanTexture& textureEntry = m_resourceManager.GetTexture(handle);
-	return glm::uvec2(textureEntry.GetWidth(), textureEntry.GetHeight());
+	if (!handle) {
+		Log::Warning(LogCat::RendererVulkan, "Empty handle passed to GetTextureResolution.");
+		return { 0, 0 };
+	}
+	VulkanTexture* textureEntry = m_resourceManager.GetTexture(handle);
+	return glm::uvec2(textureEntry->GetWidth(), textureEntry->GetHeight());
 }
 
 void RendererVulkan::SetTextureFiltering(TextureHandle handle, TextureFiltering minFilter, TextureFiltering magFilter) {
-	VulkanTexture& textureEntry = m_resourceManager.GetTexture(handle);
-	textureEntry.SetFiltering(ToVkFilter(minFilter), ToVkFilter(magFilter), ToVkMipmapMode(minFilter));
+	if (!handle) {
+		Log::Warning(LogCat::RendererVulkan, "Empty handle passed to SetTextureFiltering.");
+		return;
+	}
+	VulkanTexture* textureEntry = m_resourceManager.GetTexture(handle);
+	textureEntry->SetFiltering(ToVkFilter(minFilter), ToVkFilter(magFilter), ToVkMipmapMode(minFilter));
 }
 
 void RendererVulkan::SetTextureWrap(TextureHandle handle, TextureWrap wrapU, TextureWrap wrapV, TextureWrap wrapW) {
-	VulkanTexture& textureEntry = m_resourceManager.GetTexture(handle);
-	textureEntry.SetWrap(ToVkSamplerAddressMode(wrapU), ToVkSamplerAddressMode(wrapV), ToVkSamplerAddressMode(wrapW));
+	if (!handle) {
+		Log::Warning(LogCat::RendererVulkan, "Empty handle passed to SetTextureWrap.");
+		return;
+	}
+	VulkanTexture* textureEntry = m_resourceManager.GetTexture(handle);
+	textureEntry->SetWrap(ToVkSamplerAddressMode(wrapU), ToVkSamplerAddressMode(wrapV), ToVkSamplerAddressMode(wrapW));
 }
 
 BufferHandle RendererVulkan::CreateBuffer(BufferType type, size_t size) {
-	BufferHandle handle = m_resourceManager.CreateBuffer(size, ToVkBufferUsage(type), ToVkMemoryProps(type));
-	return handle;
+	return m_resourceManager.CreateBuffer(size, ToVkBufferUsage(type), ToVkMemoryProps(type));
 }
 
 BufferHandle RendererVulkan::CreateBuffer(BufferType type, std::span<const std::byte> data) {
 	BufferHandle handle = m_resourceManager.CreateBuffer(data.size(), ToVkBufferUsage(type), ToVkMemoryProps(type));
 
 	if (!data.empty()) {
-		VulkanBuffer& buffer = m_resourceManager.GetBuffer(handle);
-		buffer.Load(data.data(), data.size());
+		VulkanBuffer* buffer = m_resourceManager.GetBuffer(handle);
+		buffer->Load(data.data(), data.size());
 	}
 
 	return handle;
 }
 
 void RendererVulkan::UpdateBuffer(BufferHandle handle, std::span<const std::byte> data, size_t offset) {
+	if (!handle) {
+		Log::Warning(LogCat::RendererVulkan, "Empty handle passed to UpdateBuffer.");
+		return;
+	}
 	if (data.empty()) {
 		return;
 	}
-	VulkanBuffer& buffer = m_resourceManager.GetBuffer(handle);
-	buffer.LoadSubData(data.data(), data.size(), offset);
+	VulkanBuffer* buffer = m_resourceManager.GetBuffer(handle);
+	buffer->LoadSubData(data.data(), data.size(), offset);
 }
 
 size_t RendererVulkan::GetBufferSize(BufferHandle handle) {
-	VulkanBuffer& buffer = m_resourceManager.GetBuffer(handle);
-	return static_cast<size_t>(buffer.GetSize());
+	if (!handle) {
+		Log::Warning(LogCat::RendererVulkan, "Empty handle passed to GetBufferSize.");
+		return 0;
+	}
+	VulkanBuffer* buffer = m_resourceManager.GetBuffer(handle);
+	return static_cast<size_t>(buffer->GetSize());
 }
 
 std::vector<std::byte> RendererVulkan::ReadBuffer(BufferHandle handle, MemoryExtent extent) {
-	VulkanBuffer& buffer = m_resourceManager.GetBuffer(handle);
-
-	if (extent.start + extent.size > buffer.GetSize()) {
-		throw std::runtime_error("ReadBuffer: range out of bounds");
+	if (!handle) {
+		Log::Warning(LogCat::RendererVulkan, "Empty handle passed to ReadBuffer.");
+		return {};
 	}
+	VulkanBuffer* buffer = m_resourceManager.GetBuffer(handle);
+
+	if (extent.start + extent.size > buffer->GetSize()) {
+		Log::Warning(LogCat::RendererVulkan, "ReadBuffer: range out of bounds.");
+		return {};
+	}
+
 	if (extent.size == 0) {
 		return {};
 	}
 
 	std::vector<std::byte> result(extent.size);
 
-	if (buffer.GetMappedData() != nullptr) {
-		buffer.ReadData(result.data(), extent.size, extent.start);
+	if (buffer->GetMappedData() != nullptr) {
+		buffer->ReadData(result.data(), extent.size, extent.start);
 		return result;
 	}
 
@@ -523,7 +614,7 @@ std::vector<std::byte> RendererVulkan::ReadBuffer(BufferHandle handle, MemoryExt
 	region.srcOffset = extent.start;
 	region.dstOffset = 0;
 	region.size = extent.size;
-	vkCmdCopyBuffer(cmd, buffer.GetBuffer(), staging.GetBuffer(), 1, &region);
+	vkCmdCopyBuffer(cmd, buffer->GetBuffer(), staging.GetBuffer(), 1, &region);
 
 	m_device.EndSingleTimeCommands(cmd);
 
@@ -532,11 +623,16 @@ std::vector<std::byte> RendererVulkan::ReadBuffer(BufferHandle handle, MemoryExt
 }
 
 MaterialHandle RendererVulkan::CreateMaterial(const IMaterial* materialInfo) {
+	if (!materialInfo || materialInfo->vertexShaderSource.empty() || materialInfo->fragmentShaderSource.empty()) {
+		Log::Warning(LogCat::RendererVulkan, "No minimal source passed to CreateMaterial.");
+		return {};
+	}
 	return m_resourceManager.CreateGraphicsProgram(m_presentRenderPass->GetRenderPass(), materialInfo);
 }
 
 ComputeProgramHandle RendererVulkan::CreateComputeProgram(const IComputeProgram* computeInfo) {
 	if (!computeInfo || !computeInfo->source) {
+		Log::Warning(LogCat::RendererVulkan, "No source passed to CreateComputeProgram.");
 		return {};
 	}
 	return m_resourceManager.CreateComputeProgram(computeInfo->source);
@@ -548,12 +644,17 @@ void RendererVulkan::BindTexture(
     TextureHandle textureHandle,
     uint32_t arrayIndex
 ) {
-	if (!materialHandle || !textureHandle) {
+	if (!materialHandle) {
+		Log::Warning(LogCat::RendererVulkan, "Empty material handle passed to BindTexture.");
 		return;
 	}
-	VulkanGraphicsProgram& program = m_resourceManager.GetGraphicsProgram(materialHandle);
-	VulkanTexture& texture = m_resourceManager.GetTexture(textureHandle);
-	program.BindTexture(name, texture, m_currentFrame, arrayIndex);
+	if (!textureHandle) {
+		Log::Warning(LogCat::RendererVulkan, "Empty texture handle passed to BindTexture.");
+		return;
+	}
+	VulkanGraphicsProgram* program = m_resourceManager.GetGraphicsProgram(materialHandle);
+	VulkanTexture* texture = m_resourceManager.GetTexture(textureHandle);
+	program->BindTexture(name, *texture, m_currentFrame, arrayIndex);
 }
 
 void RendererVulkan::BindTexture(
@@ -562,12 +663,17 @@ void RendererVulkan::BindTexture(
     TextureHandle textureHandle,
     uint32_t arrayIndex
 ) {
-	if (!programHandle || !textureHandle) {
+	if (!programHandle) {
+		Log::Warning(LogCat::RendererVulkan, "Empty program handle passed to BindTexture.");
 		return;
 	}
-	VulkanComputeProgram& prog = m_resourceManager.GetComputeProgram(programHandle);
-	VulkanTexture& texture = m_resourceManager.GetTexture(textureHandle);
-	prog.BindTexture(name, texture, m_currentFrame, arrayIndex);
+	if (!textureHandle) {
+		Log::Warning(LogCat::RendererVulkan, "Empty texture handle passed to BindTexture.");
+		return;
+	}
+	VulkanComputeProgram* prog = m_resourceManager.GetComputeProgram(programHandle);
+	VulkanTexture* texture = m_resourceManager.GetTexture(textureHandle);
+	prog->BindTexture(name, *texture, m_currentFrame, arrayIndex);
 }
 
 void RendererVulkan::BindTexture(
@@ -576,9 +682,17 @@ void RendererVulkan::BindTexture(
     FrameBufferHandle frameBufferHandle,
     uint32_t arrayIndex
 ) {
-	VulkanGraphicsProgram& program = m_resourceManager.GetGraphicsProgram(materialHandle);
-	VulkanFrameBuffer& fb = m_resourceManager.GetFrameBuffer(frameBufferHandle);
-	program.BindTextureView(name, fb.GetColorImageView(), fb.GetSampler(), m_currentFrame, arrayIndex);
+	if (!materialHandle) {
+		Log::Warning(LogCat::RendererVulkan, "Empty material handle passed to BindTexture.");
+		return;
+	}
+	if (!frameBufferHandle) {
+		Log::Warning(LogCat::RendererVulkan, "Empty frame buffer handle passed to BindTexture.");
+		return;
+	}
+	VulkanGraphicsProgram* program = m_resourceManager.GetGraphicsProgram(materialHandle);
+	VulkanFrameBuffer* fb = m_resourceManager.GetFrameBuffer(frameBufferHandle);
+	program->BindTextureView(name, fb->GetColorImageView(), fb->GetSampler(), m_currentFrame, arrayIndex);
 }
 
 void RendererVulkan::BindTexture(
@@ -587,9 +701,17 @@ void RendererVulkan::BindTexture(
     FrameBufferHandle frameBufferHandle,
     uint32_t arrayIndex
 ) {
-	VulkanComputeProgram& prog = m_resourceManager.GetComputeProgram(programHandle);
-	VulkanFrameBuffer& fb = m_resourceManager.GetFrameBuffer(frameBufferHandle);
-	prog.BindTextureView(name, fb.GetColorImageView(), fb.GetSampler(), m_currentFrame, arrayIndex);
+	if (!programHandle) {
+		Log::Warning(LogCat::RendererVulkan, "Empty program handle passed to BindTexture.");
+		return;
+	}
+	if (!frameBufferHandle) {
+		Log::Warning(LogCat::RendererVulkan, "Empty frame buffer handle passed to BindTexture.");
+		return;
+	}
+	VulkanComputeProgram* prog = m_resourceManager.GetComputeProgram(programHandle);
+	VulkanFrameBuffer* fb = m_resourceManager.GetFrameBuffer(frameBufferHandle);
+	prog->BindTextureView(name, fb->GetColorImageView(), fb->GetSampler(), m_currentFrame, arrayIndex);
 }
 
 void RendererVulkan::BindBuffer(
@@ -598,9 +720,17 @@ void RendererVulkan::BindBuffer(
     BufferHandle bufferHandle,
     MemoryExtent range
 ) {
-	VulkanGraphicsProgram& program = m_resourceManager.GetGraphicsProgram(materialHandle);
-	VulkanBuffer& buffer = m_resourceManager.GetBuffer(bufferHandle);
-	program.BindBuffer(name, buffer.GetBuffer(), range.start, range.size, m_currentFrame);
+	if (!materialHandle) {
+		Log::Warning(LogCat::RendererVulkan, "Empty material handle passed to BindBuffer.");
+		return;
+	}
+	if (!bufferHandle) {
+		Log::Warning(LogCat::RendererVulkan, "Empty buffer buffer handle passed to BindBuffer.");
+		return;
+	}
+	VulkanGraphicsProgram* program = m_resourceManager.GetGraphicsProgram(materialHandle);
+	VulkanBuffer* buffer = m_resourceManager.GetBuffer(bufferHandle);
+	program->BindBuffer(name, buffer->GetBuffer(), range.start, range.size, m_currentFrame);
 }
 
 void RendererVulkan::BindBuffer(
@@ -609,9 +739,17 @@ void RendererVulkan::BindBuffer(
     BufferHandle bufferHandle,
     MemoryExtent range
 ) {
-	VulkanComputeProgram& program = m_resourceManager.GetComputeProgram(programHandle);
-	VulkanBuffer& buffer = m_resourceManager.GetBuffer(bufferHandle);
-	program.BindBuffer(name, buffer.GetBuffer(), range.start, range.size, m_currentFrame);
+	if (!programHandle) {
+		Log::Warning(LogCat::RendererVulkan, "Empty program handle passed to BindBuffer.");
+		return;
+	}
+	if (!bufferHandle) {
+		Log::Warning(LogCat::RendererVulkan, "Empty buffer buffer handle passed to BindBuffer.");
+		return;
+	}
+	VulkanComputeProgram* program = m_resourceManager.GetComputeProgram(programHandle);
+	VulkanBuffer* buffer = m_resourceManager.GetBuffer(bufferHandle);
+	program->BindBuffer(name, buffer->GetBuffer(), range.start, range.size, m_currentFrame);
 }
 
 void RendererVulkan::WaitIdle() {
@@ -636,20 +774,26 @@ void RendererVulkan::BeginStage(std::string_view name, StageType type) {
 }
 
 void RendererVulkan::UseResource(TextureHandle h, ResourceUsage u) {
+	if (!h) {
+		Log::Warning(LogCat::RendererVulkan, "Empty texture handle passed to UseResource.");
+		return;
+	}
+
 	auto& state = m_resourceStates[h.GetId()];
 	ResourceState want = ToVkState(u);
 
-	if (state.layout == want.layout && state.access == want.access)
+	if (state.layout == want.layout && state.access == want.access) {
 		return;
+	}
 
-	VulkanTexture& tex = m_resourceManager.GetTexture(h);
+	VulkanTexture* tex = m_resourceManager.GetTexture(h);
 
 	VkImageMemoryBarrier b{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
 	b.oldLayout = state.layout;
 	b.newLayout = want.layout;
 	b.srcAccessMask = state.access;
 	b.dstAccessMask = want.access;
-	b.image = tex.GetImage();
+	b.image = tex->GetImage();
 	b.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
 
 	vkCmdPipelineBarrier(m_commandBuffers[m_currentFrame], state.stage, want.stage, 0, 0, nullptr, 0, nullptr, 1, &b);
@@ -659,22 +803,24 @@ void RendererVulkan::UseResource(TextureHandle h, ResourceUsage u) {
 
 void RendererVulkan::UseResource(FrameBufferHandle h, ResourceUsage u) {
 	if (!h) {
+		Log::Warning(LogCat::RendererVulkan, "Empty frame buffer handle passed to UseResource.");
 		return;
 	}
 
 	auto& state = m_resourceStates[h.GetId()];
 	ResourceState want = ToVkState(u);
-	if (state.layout == want.layout && state.access == want.access)
+	if (state.layout == want.layout && state.access == want.access) {
 		return;
+	}
 
-	VulkanFrameBuffer& fb = m_resourceManager.GetFrameBuffer(h);
+	VulkanFrameBuffer* fb = m_resourceManager.GetFrameBuffer(h);
 
 	VkImageMemoryBarrier b{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
 	b.oldLayout = state.layout;
 	b.newLayout = want.layout;
 	b.srcAccessMask = state.access;
 	b.dstAccessMask = want.access;
-	b.image = fb.GetColorImage();
+	b.image = fb->GetColorImage();
 	b.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
 
 	vkCmdPipelineBarrier(m_commandBuffers[m_currentFrame], state.stage, want.stage, 0, 0, nullptr, 0, nullptr, 1, &b);
@@ -682,16 +828,21 @@ void RendererVulkan::UseResource(FrameBufferHandle h, ResourceUsage u) {
 }
 
 void RendererVulkan::UseResource(BufferHandle h, ResourceUsage u) {
+	if (!h) {
+		Log::Warning(LogCat::RendererVulkan, "Empty buffer handle passed to UseResource.");
+		return;
+	}
+
 	if (u != ResourceUsage::StorageRead && u != ResourceUsage::StorageWrite && u != ResourceUsage::UniformRead) {
 		return;
 	}
 
-	VulkanBuffer& buf = m_resourceManager.GetBuffer(h);
+	VulkanBuffer* buf = m_resourceManager.GetBuffer(h);
 
 	VkBufferMemoryBarrier b{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
 	b.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
 	b.dstAccessMask = (u == ResourceUsage::StorageWrite) ? VK_ACCESS_SHADER_WRITE_BIT : VK_ACCESS_SHADER_READ_BIT;
-	b.buffer = buf.GetBuffer();
+	b.buffer = buf->GetBuffer();
 	b.offset = 0;
 	b.size = VK_WHOLE_SIZE;
 
@@ -717,13 +868,15 @@ void RendererVulkan::SetStageRenderTarget(FrameBufferHandle fbo) {
 }
 
 void RendererVulkan::EndStage() {
-	if (m_currentRenderPass)
+	if (m_currentRenderPass) {
 		EndRenderPass();
+	}
 }
 
 void RendererVulkan::SetStageViewport(ScreenRect rect) {
-	if (!m_currentRenderPass)
+	if (!m_currentRenderPass) {
 		return;
+	}
 	VkViewport vp{};
 	vp.x = float(rect.origin.x);
 	vp.y = float(rect.origin.y);
@@ -733,7 +886,7 @@ void RendererVulkan::SetStageViewport(ScreenRect rect) {
 	vp.maxDepth = 1.f;
 
 	if (m_activeFrameBuffer) {
-		m_resourceManager.GetFrameBuffer(m_activeFrameBuffer).SetViewport(vp);
+		m_resourceManager.GetFrameBuffer(m_activeFrameBuffer)->SetViewport(vp);
 	} else {
 		m_presentViewport = vp;
 	}
@@ -751,7 +904,7 @@ void RendererVulkan::SetStageScissor(ScreenRect rect) {
 	scissor.extent.height = rect.size.y;
 
 	if (m_activeFrameBuffer) {
-		m_resourceManager.GetFrameBuffer(m_activeFrameBuffer).SetScissor(scissor);
+		m_resourceManager.GetFrameBuffer(m_activeFrameBuffer)->SetScissor(scissor);
 	} else {
 		m_presentScissor = scissor;
 	}
@@ -807,23 +960,35 @@ VkCommandBuffer RendererVulkan::GetCurrentFrameCommandBuffer() const {
 }
 
 VkImageView RendererVulkan::GetTextureImageView(TextureHandle handle) {
-	VulkanTexture& texture = m_resourceManager.GetTexture(handle);
-	return texture.GetImageView();
+	if (!handle) {
+		return VK_NULL_HANDLE;
+	}
+	VulkanTexture* texture = m_resourceManager.GetTexture(handle);
+	return texture->GetImageView();
 }
 
 VkSampler RendererVulkan::GetTextureSampler(TextureHandle handle) {
-	VulkanTexture& texture = m_resourceManager.GetTexture(handle);
-	return texture.GetSampler();
+	if (!handle) {
+		return VK_NULL_HANDLE;
+	}
+	VulkanTexture* texture = m_resourceManager.GetTexture(handle);
+	return texture->GetSampler();
 }
 
 VkImageView RendererVulkan::GetFrameBufferColorImageView(FrameBufferHandle handle) {
-	VulkanFrameBuffer& fb = m_resourceManager.GetFrameBuffer(handle);
-	return fb.GetColorImageView();
+	if (!handle) {
+		return VK_NULL_HANDLE;
+	}
+	VulkanFrameBuffer* fb = m_resourceManager.GetFrameBuffer(handle);
+	return fb->GetColorImageView();
 }
 
 VkSampler RendererVulkan::GetFrameBufferSampler(FrameBufferHandle handle) {
-	VulkanFrameBuffer& fb = m_resourceManager.GetFrameBuffer(handle);
-	return fb.GetSampler();
+	if (!handle) {
+		return VK_NULL_HANDLE;
+	}
+	VulkanFrameBuffer* fb = m_resourceManager.GetFrameBuffer(handle);
+	return fb->GetSampler();
 }
 
 void RendererVulkan::CreateSyncObjects() {

@@ -14,6 +14,8 @@ class VulkanSwapchain;
 
 class VulkanDevice {
   public:
+	static constexpr uint32_t kInvalidMemoryType = UINT32_MAX;
+
 	VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
 	VkDevice m_device = VK_NULL_HANDLE;
 	VkSurfaceKHR m_surface = VK_NULL_HANDLE;

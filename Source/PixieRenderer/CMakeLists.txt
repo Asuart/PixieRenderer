@@ -16,6 +16,7 @@ target_precompile_headers(PixieRenderer PRIVATE
 target_include_directories(PixieRenderer PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../")
 target_include_directories(PixieRenderer PUBLIC "${glm_SOURCE_DIR}")
 
+target_link_libraries(PixieRenderer PUBLIC PixieLog)
 target_link_libraries(PixieRenderer PUBLIC glfw)
 target_link_libraries(PixieRenderer PUBLIC glad)
 target_link_libraries(PixieRenderer PUBLIC Vulkan::Vulkan)

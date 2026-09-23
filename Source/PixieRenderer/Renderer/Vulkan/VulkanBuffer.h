@@ -38,7 +38,7 @@ class VulkanBuffer {
 	VkDeviceMemory m_memory = VK_NULL_HANDLE;
 	void* m_mappedMemory = nullptr;
 
-	void Resize(VkDeviceSize size);
+	bool Resize(VkDeviceSize size);
 	void Flush(VkDeviceSize size, VkDeviceSize offset) const;
 	void Invalidate(VkDeviceSize size, VkDeviceSize offset) const;
 };

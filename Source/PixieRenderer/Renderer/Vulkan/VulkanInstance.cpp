@@ -1,11 +1,12 @@
-#include "PixieRenderer/pch.h"
 #include "VulkanInstance.h"
+#include "PixieRenderer/pch.h"
 
-#include "VulkanConfig.h"
 #include "DebugVulkan.h"
 #include "VulkanConfig.h"
 #include "VulkanDevice.h"
 #include "VulkanPhysicalDeviceUtils.h"
+
+#include "PixieRenderer/LogCategories.h"
 
 namespace PixieRenderer {
 
@@ -121,8 +122,7 @@ bool VulkanInstance::CheckValidationLayerSupport() {
 	return true;
 }
 
-void VulkanInstance::PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo
-) {
+void VulkanInstance::PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo) {
 	createInfo = {};
 	createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
 	createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
@@ -141,8 +141,7 @@ void VulkanInstance::SetupDebugMessenger() {
 	VkDebugUtilsMessengerCreateInfoEXT createInfo;
 	PopulateDebugMessengerCreateInfo(createInfo);
 
-	if (CreateDebugUtilsMessengerEXT(m_instance, &createInfo, nullptr, &m_debugMessenger) !=
-	    VK_SUCCESS) {
+	if (CreateDebugUtilsMessengerEXT(m_instance, &createInfo, nullptr, &m_debugMessenger) != VK_SUCCESS) {
 		throw std::runtime_error("failed to set up debug messenger!");
 	}
 }
@@ -150,22 +149,18 @@ void VulkanInstance::SetupDebugMessenger() {
 bool VulkanInstance::IsDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface) const {
 	QueueFamilyIndices indices = VulkanPhysicalDeviceUtils::FindQueueFamilies(device, surface);
 
-	bool extensionsSupported = VulkanPhysicalDeviceUtils::
-	    CheckExtensionSupport(device, deviceExtensions);
+	bool extensionsSupported = VulkanPhysicalDeviceUtils::CheckExtensionSupport(device, deviceExtensions);
 
 	bool swapChainAdequate = false;
 	if (extensionsSupported) {
-		SwapChainSupportDetails
-		    swapChainSupport = VulkanPhysicalDeviceUtils::QuerySwapChainSupport(device, surface);
-		swapChainAdequate = !swapChainSupport.formats.empty() &&
-		                    !swapChainSupport.presentModes.empty();
+		SwapChainSupportDetails swapChainSupport = VulkanPhysicalDeviceUtils::QuerySwapChainSupport(device, surface);
+		swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
 	}
 
 	VkPhysicalDeviceFeatures supportedFeatures;
 	vkGetPhysicalDeviceFeatures(device, &supportedFeatures);
 
-	return indices.IsComplete() && extensionsSupported && swapChainAdequate &&
-	       supportedFeatures.samplerAnisotropy;
+	return indices.IsComplete() && extensionsSupported && swapChainAdequate && supportedFeatures.samplerAnisotropy;
 }
 
 void VulkanInstance::PrintAvailableLayers() {
@@ -175,9 +170,9 @@ void VulkanInstance::PrintAvailableLayers() {
 	std::vector<VkLayerProperties> availableLayers(layerCount);
 	vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
 
-	std::cout << "Available instance validation layers:\n";
+	Log::Info(LogCat::vkInstance, "Available instance validation layers:");
 	for (const auto& layer : availableLayers) {
-		std::cout << "\t" << layer.layerName << " - " << layer.description << "\n";
+		Log::Info(LogCat::vkInstance, "\t{} - {}", layer.layerName, layer.description);
 	}
 }
 
@@ -188,10 +183,9 @@ void VulkanInstance::PrintAvailableExtensions() {
 	std::vector<VkExtensionProperties> availableExtensions(extensionCount);
 	vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, availableExtensions.data());
 
-	std::cout << "Available instance extensions:\n";
+	Log::Info(LogCat::vkInstance, "Available instance extensions:");
 	for (const auto& extension : availableExtensions) {
-		std::cout << "\t" << extension.extensionName << " (Spec Version: " << extension.specVersion
-		          << ")\n";
+		Log::Info(LogCat::vkInstance, "\t{} (Spec Version: {})", extension.extensionName, extension.specVersion);
 	}
 }
 

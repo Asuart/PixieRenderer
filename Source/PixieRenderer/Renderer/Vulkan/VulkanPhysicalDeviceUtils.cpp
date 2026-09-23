@@ -1,23 +1,18 @@
-#include "PixieRenderer/pch.h"
 #include "VulkanPhysicalDeviceUtils.h"
+#include "PixieRenderer/pch.h"
+
+#include "PixieRenderer/LogCategories.h"
 
 namespace PixieRenderer {
 
-QueueFamilyIndices VulkanPhysicalDeviceUtils::FindQueueFamilies(
-    VkPhysicalDevice physicalDevice,
-    VkSurfaceKHR surface
-) {
+QueueFamilyIndices VulkanPhysicalDeviceUtils::FindQueueFamilies(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface) {
 	QueueFamilyIndices indices;
 
 	uint32_t queueFamilyCount = 0;
 	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
 
 	std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-	vkGetPhysicalDeviceQueueFamilyProperties(
-	    physicalDevice,
-	    &queueFamilyCount,
-	    queueFamilies.data()
-	);
+	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamilies.data());
 
 	for (size_t i = 0; i < queueFamilies.size(); i++) {
 		const auto& queueFamily = queueFamilies[i];
@@ -27,12 +22,7 @@ QueueFamilyIndices VulkanPhysicalDeviceUtils::FindQueueFamilies(
 		}
 
 		VkBool32 presentSupport = false;
-		vkGetPhysicalDeviceSurfaceSupportKHR(
-		    physicalDevice,
-		    static_cast<uint32_t>(i),
-		    surface,
-		    &presentSupport
-		);
+		vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, static_cast<uint32_t>(i), surface, &presentSupport);
 
 		if (presentSupport) {
 			indices.presentFamily = static_cast<uint32_t>(i);
@@ -54,12 +44,7 @@ bool VulkanPhysicalDeviceUtils::CheckExtensionSupport(
 	vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr);
 
 	std::vector<VkExtensionProperties> availableExtensions(extensionCount);
-	vkEnumerateDeviceExtensionProperties(
-	    physicalDevice,
-	    nullptr,
-	    &extensionCount,
-	    availableExtensions.data()
-	);
+	vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, availableExtensions.data());
 
 	std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
 
@@ -83,12 +68,7 @@ SwapChainSupportDetails VulkanPhysicalDeviceUtils::QuerySwapChainSupport(
 
 	if (formatCount != 0) {
 		details.formats.resize(formatCount);
-		vkGetPhysicalDeviceSurfaceFormatsKHR(
-		    physicalDevice,
-		    surface,
-		    &formatCount,
-		    details.formats.data()
-		);
+		vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, details.formats.data());
 	}
 
 	uint32_t presentModeCount;
@@ -120,50 +100,112 @@ VkImageAspectFlags VulkanPhysicalDeviceUtils::GetAspectMask(VkFormat format) {
 	}
 }
 
+namespace {
+
+std::string FormatUuid(const uint8_t* uuid, size_t n) {
+	std::string s;
+	s.reserve(n * 2 + 4);
+	for (size_t i = 0; i < n; ++i) {
+		s += std::format("{:02x}", uuid[i]);
+		if (i == 3 || i == 5 || i == 7 || i == 9)
+			s += '-';
+	}
+	return s;
+}
+
+const char* DeviceTypeToString(VkPhysicalDeviceType t) {
+	switch (t) {
+	case VK_PHYSICAL_DEVICE_TYPE_OTHER:
+		return "Other";
+	case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+		return "Integrated GPU";
+	case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+		return "Discrete GPU";
+	case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+		return "Virtual GPU";
+	case VK_PHYSICAL_DEVICE_TYPE_CPU:
+		return "CPU";
+	default:
+		return "Unknown";
+	}
+}
+
+std::string QueueFlagsToString(VkQueueFlags flags) {
+	std::string s;
+	if (flags & VK_QUEUE_GRAPHICS_BIT)
+		s += "GRAPHICS ";
+	if (flags & VK_QUEUE_COMPUTE_BIT)
+		s += "COMPUTE ";
+	if (flags & VK_QUEUE_TRANSFER_BIT)
+		s += "TRANSFER ";
+	if (flags & VK_QUEUE_SPARSE_BINDING_BIT)
+		s += "SPARSE_BINDING ";
+	if (flags & VK_QUEUE_PROTECTED_BIT)
+		s += "PROTECTED ";
+	if (!s.empty() && s.back() == ' ')
+		s.pop_back();
+	return s.empty() ? "-" : s;
+}
+
+std::string MemoryHeapFlagsToString(VkMemoryHeapFlags flags) {
+	std::string s;
+	if (flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
+		s += "DEVICE_LOCAL ";
+	if (flags & VK_MEMORY_HEAP_MULTI_INSTANCE_BIT)
+		s += "MULTI_INSTANCE ";
+	if (!s.empty() && s.back() == ' ')
+		s.pop_back();
+	return s.empty() ? "-" : s;
+}
+
+std::string MemoryPropertyFlagsToString(VkMemoryPropertyFlags flags) {
+	std::string s;
+	if (flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+		s += "DEVICE_LOCAL ";
+	if (flags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
+		s += "HOST_VISIBLE ";
+	if (flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
+		s += "HOST_COHERENT ";
+	if (flags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT)
+		s += "HOST_CACHED ";
+	if (flags & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT)
+		s += "LAZILY_ALLOCATED ";
+	if (flags & VK_MEMORY_PROPERTY_PROTECTED_BIT)
+		s += "PROTECTED ";
+	if (!s.empty() && s.back() == ' ')
+		s.pop_back();
+	return s.empty() ? "-" : s;
+}
+
+} // namespace
+
 void VulkanPhysicalDeviceUtils::PrintPhysicalDeviceProperties(VkPhysicalDevice physicalDevice) {
 	VkPhysicalDeviceProperties props;
 	vkGetPhysicalDeviceProperties(physicalDevice, &props);
 
-	std::cout << "===== PHYSICAL DEVICE PROPERTIES =====\n";
-	std::cout << "Device name       : " << props.deviceName << '\n';
-	std::cout << "Device type       : ";
-	switch (props.deviceType) {
-	case VK_PHYSICAL_DEVICE_TYPE_OTHER:
-		std::cout << "Other";
-		break;
-	case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
-		std::cout << "Integrated GPU";
-		break;
-	case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
-		std::cout << "Discrete GPU";
-		break;
-	case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
-		std::cout << "Virtual GPU";
-		break;
-	case VK_PHYSICAL_DEVICE_TYPE_CPU:
-		std::cout << "CPU";
-		break;
-	default:
-		std::cout << "Unknown";
-		break;
-	}
-	std::cout << '\n';
-	std::cout << "API version       : " << VK_API_VERSION_MAJOR(props.apiVersion) << '.'
-	          << VK_API_VERSION_MINOR(props.apiVersion) << '.'
-	          << VK_API_VERSION_PATCH(props.apiVersion) << '\n';
-	std::cout << "Driver version    : " << props.driverVersion << '\n';
-	std::cout << "Vendor ID         : 0x" << std::hex << props.vendorID << std::dec << '\n';
-	std::cout << "Device ID         : 0x" << std::hex << props.deviceID << std::dec << '\n';
-	std::cout << "Pipeline cache UUID: ";
-	for (uint32_t i = 0; i < VK_UUID_SIZE; ++i) {
-		std::cout << std::hex << std::setw(2) << std::setfill('0')
-		          << (int)props.pipelineCacheUUID[i] << (i < VK_UUID_SIZE - 1 ? "-" : "");
-	}
-	std::cout << std::dec << "\n\n";
+	Log::Info(LogCat::vkPhysicalDeviceUtils, "===== PHYSICAL DEVICE PROPERTIES =====");
+	Log::Info(LogCat::vkPhysicalDeviceUtils, "Device name         : {}", (const char*)props.deviceName);
+	Log::Info(LogCat::vkPhysicalDeviceUtils, "Device type         : {}", DeviceTypeToString(props.deviceType));
+	Log::Info(
+	    LogCat::vkPhysicalDeviceUtils,
+	    "API version         : {}.{}.{}",
+	    VK_API_VERSION_MAJOR(props.apiVersion),
+	    VK_API_VERSION_MINOR(props.apiVersion),
+	    VK_API_VERSION_PATCH(props.apiVersion)
+	);
+	Log::Info(LogCat::vkPhysicalDeviceUtils, "Driver version      : {}", props.driverVersion);
+	Log::Info(LogCat::vkPhysicalDeviceUtils, "Vendor ID           : 0x{:x}", props.vendorID);
+	Log::Info(LogCat::vkPhysicalDeviceUtils, "Device ID           : 0x{:x}", props.deviceID);
+	Log::Info(
+	    LogCat::vkPhysicalDeviceUtils,
+	    "Pipeline cache UUID : {}",
+	    FormatUuid(props.pipelineCacheUUID, VK_UUID_SIZE)
+	);
+	Log::Info(LogCat::vkPhysicalDeviceUtils, "");
 
 	const auto& lim = props.limits;
-	std::cout << "----- LIMITS -----\n";
-#define PRINT_LIMIT(name) std::cout << #name << ": " << lim.name << '\n'
+	Log::Info(LogCat::vkPhysicalDeviceUtils, "----- LIMITS -----");
+#define PRINT_LIMIT(name) Log::Info(LogCat::vkPhysicalDeviceUtils, "  {}: {}", #name, lim.name)
 	PRINT_LIMIT(maxImageDimension1D);
 	PRINT_LIMIT(maxImageDimension2D);
 	PRINT_LIMIT(maxImageDimension3D);
@@ -216,11 +258,21 @@ void VulkanPhysicalDeviceUtils::PrintPhysicalDeviceProperties(VkPhysicalDevice p
 	PRINT_LIMIT(maxFragmentDualSrcAttachments);
 	PRINT_LIMIT(maxFragmentCombinedOutputResources);
 	PRINT_LIMIT(maxComputeSharedMemorySize);
-	std::cout << "maxComputeWorkGroupCount  : " << lim.maxComputeWorkGroupCount[0] << ", "
-	          << lim.maxComputeWorkGroupCount[1] << ", " << lim.maxComputeWorkGroupCount[2] << '\n';
+	Log::Info(
+	    LogCat::vkPhysicalDeviceUtils,
+	    "  maxComputeWorkGroupCount: {} {} {}",
+	    lim.maxComputeWorkGroupCount[0],
+	    lim.maxComputeWorkGroupCount[1],
+	    lim.maxComputeWorkGroupCount[2]
+	);
 	PRINT_LIMIT(maxComputeWorkGroupInvocations);
-	std::cout << "maxComputeWorkGroupSize   : " << lim.maxComputeWorkGroupSize[0] << ", "
-	          << lim.maxComputeWorkGroupSize[1] << ", " << lim.maxComputeWorkGroupSize[2] << '\n';
+	Log::Info(
+	    LogCat::vkPhysicalDeviceUtils,
+	    "  maxComputeWorkGroupSize : {} {} {}",
+	    lim.maxComputeWorkGroupSize[0],
+	    lim.maxComputeWorkGroupSize[1],
+	    lim.maxComputeWorkGroupSize[2]
+	);
 	PRINT_LIMIT(subPixelPrecisionBits);
 	PRINT_LIMIT(subTexelPrecisionBits);
 	PRINT_LIMIT(mipmapPrecisionBits);
@@ -229,10 +281,18 @@ void VulkanPhysicalDeviceUtils::PrintPhysicalDeviceProperties(VkPhysicalDevice p
 	PRINT_LIMIT(maxSamplerLodBias);
 	PRINT_LIMIT(maxSamplerAnisotropy);
 	PRINT_LIMIT(maxViewports);
-	std::cout << "maxViewportDimensions    : " << lim.maxViewportDimensions[0] << " x "
-	          << lim.maxViewportDimensions[1] << '\n';
-	std::cout << "viewportBoundsRange      : " << lim.viewportBoundsRange[0] << " .. "
-	          << lim.viewportBoundsRange[1] << '\n';
+	Log::Info(
+	    LogCat::vkPhysicalDeviceUtils,
+	    "  maxViewportDimensions   : {} x {}",
+	    lim.maxViewportDimensions[0],
+	    lim.maxViewportDimensions[1]
+	);
+	Log::Info(
+	    LogCat::vkPhysicalDeviceUtils,
+	    "  viewportBoundsRange     : {} .. {}",
+	    lim.viewportBoundsRange[0],
+	    lim.viewportBoundsRange[1]
+	);
 	PRINT_LIMIT(viewportSubPixelBits);
 	PRINT_LIMIT(minMemoryMapAlignment);
 	PRINT_LIMIT(minTexelBufferOffsetAlignment);
@@ -259,84 +319,105 @@ void VulkanPhysicalDeviceUtils::PrintPhysicalDeviceProperties(VkPhysicalDevice p
 	PRINT_LIMIT(sampledImageStencilSampleCounts);
 	PRINT_LIMIT(storageImageSampleCounts);
 	PRINT_LIMIT(maxSampleMaskWords);
-	std::cout << "timestampComputeAndGraphics: "
-	          << (lim.timestampComputeAndGraphics ? "true" : "false") << '\n';
+	Log::Info(
+	    LogCat::vkPhysicalDeviceUtils,
+	    "  timestampComputeAndGraphics: {}",
+	    lim.timestampComputeAndGraphics ? "true" : "false"
+	);
 	PRINT_LIMIT(timestampPeriod);
 	PRINT_LIMIT(maxClipDistances);
 	PRINT_LIMIT(maxCullDistances);
 	PRINT_LIMIT(maxCombinedClipAndCullDistances);
 	PRINT_LIMIT(discreteQueuePriorities);
-	std::cout << "pointSizeRange          : " << lim.pointSizeRange[0] << " .. "
-	          << lim.pointSizeRange[1] << '\n';
-	std::cout << "lineWidthRange          : " << lim.lineWidthRange[0] << " .. "
-	          << lim.lineWidthRange[1] << '\n';
+	Log::Info(
+	    LogCat::vkPhysicalDeviceUtils,
+	    "  pointSizeRange          : {} .. {}",
+	    lim.pointSizeRange[0],
+	    lim.pointSizeRange[1]
+	);
+	Log::Info(
+	    LogCat::vkPhysicalDeviceUtils,
+	    "  lineWidthRange          : {} .. {}",
+	    lim.lineWidthRange[0],
+	    lim.lineWidthRange[1]
+	);
 	PRINT_LIMIT(pointSizeGranularity);
 	PRINT_LIMIT(lineWidthGranularity);
-	std::cout << "strictLines             : " << (lim.strictLines ? "true" : "false") << '\n';
-	std::cout << "standardSampleLocations : " << (lim.standardSampleLocations ? "true" : "false")
-	          << '\n';
+	Log::Info(LogCat::vkPhysicalDeviceUtils, "  strictLines             : {}", lim.strictLines ? "true" : "false");
+	Log::Info(
+	    LogCat::vkPhysicalDeviceUtils,
+	    "  standardSampleLocations : {}",
+	    lim.standardSampleLocations ? "true" : "false"
+	);
 	PRINT_LIMIT(optimalBufferCopyOffsetAlignment);
 	PRINT_LIMIT(optimalBufferCopyRowPitchAlignment);
 	PRINT_LIMIT(nonCoherentAtomSize);
 #undef PRINT_LIMIT
-	std::cout << '\n';
+	Log::Info(LogCat::vkPhysicalDeviceUtils, "");
 
-	uint32_t extCount;
+	uint32_t extCount = 0;
 	vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extCount, nullptr);
 	std::vector<VkExtensionProperties> extensions(extCount);
 	vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extCount, extensions.data());
-	std::cout << "----- DEVICE EXTENSIONS (" << extCount << ") -----\n";
+	Log::Info(LogCat::vkPhysicalDeviceUtils, "----- DEVICE EXTENSIONS ({}) -----", extCount);
 	for (const auto& ext : extensions) {
-		std::cout << "  " << ext.extensionName << " (spec " << ext.specVersion << ")\n";
+		Log::Info(LogCat::vkPhysicalDeviceUtils, "  {} (spec {})", ext.extensionName, ext.specVersion);
 	}
-	std::cout << '\n';
+	Log::Info(LogCat::vkPhysicalDeviceUtils, "");
 
-	uint32_t qfCount;
+	uint32_t qfCount = 0;
 	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &qfCount, nullptr);
 	std::vector<VkQueueFamilyProperties> qfProps(qfCount);
 	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &qfCount, qfProps.data());
-	std::cout << "----- QUEUE FAMILIES (" << qfCount << ") -----\n";
+	Log::Info(LogCat::vkPhysicalDeviceUtils, "----- QUEUE FAMILIES ({}) -----", qfCount);
 	for (uint32_t i = 0; i < qfCount; ++i) {
-		std::cout << "  Family " << i << ":\n";
-		std::cout << "    queueCount           : " << qfProps[i].queueCount << '\n';
-		std::cout << "    timestampValidBits   : " << qfProps[i].timestampValidBits << '\n';
-		std::cout << "    minImageTransferGranularity: "
-		          << qfProps[i].minImageTransferGranularity.width << "x"
-		          << qfProps[i].minImageTransferGranularity.height << "x"
-		          << qfProps[i].minImageTransferGranularity.depth << '\n';
-		std::cout << "    flags                : ";
-		if (qfProps[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
-			std::cout << "GRAPHICS ";
-		if (qfProps[i].queueFlags & VK_QUEUE_COMPUTE_BIT)
-			std::cout << "COMPUTE ";
-		if (qfProps[i].queueFlags & VK_QUEUE_TRANSFER_BIT)
-			std::cout << "TRANSFER ";
-		if (qfProps[i].queueFlags & VK_QUEUE_SPARSE_BINDING_BIT)
-			std::cout << "SPARSE_BINDING ";
-		if (qfProps[i].queueFlags & VK_QUEUE_PROTECTED_BIT)
-			std::cout << "PROTECTED ";
-		std::cout << "\n\n";
+		Log::Info(LogCat::vkPhysicalDeviceUtils, "  Family {}:", i);
+		Log::Info(LogCat::vkPhysicalDeviceUtils, "    queueCount                 : {}", qfProps[i].queueCount);
+		Log::Info(LogCat::vkPhysicalDeviceUtils, "    timestampValidBits         : {}", qfProps[i].timestampValidBits);
+		Log::Info(
+		    LogCat::vkPhysicalDeviceUtils,
+		    "    minImageTransferGranularity: {}x{}x{}",
+		    qfProps[i].minImageTransferGranularity.width,
+		    qfProps[i].minImageTransferGranularity.height,
+		    qfProps[i].minImageTransferGranularity.depth
+		);
+		Log::Info(
+		    LogCat::vkPhysicalDeviceUtils,
+		    "    flags                      : {}",
+		    QueueFlagsToString(qfProps[i].queueFlags)
+		);
+		Log::Info(LogCat::vkPhysicalDeviceUtils, "");
 	}
 
 	VkPhysicalDeviceMemoryProperties memProps;
 	vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProps);
-	std::cout << "----- MEMORY PROPERTIES -----\n";
-	std::cout << "  Memory heaps (" << memProps.memoryHeapCount << "):\n";
+	Log::Info(LogCat::vkPhysicalDeviceUtils, "----- MEMORY PROPERTIES -----");
+	Log::Info(LogCat::vkPhysicalDeviceUtils, "  Memory heaps ({}):", memProps.memoryHeapCount);
 	for (uint32_t i = 0; i < memProps.memoryHeapCount; ++i) {
-		std::cout << "    Heap " << i << ": size = " << memProps.memoryHeaps[i].size
-		          << " bytes, flags = " << memProps.memoryHeaps[i].flags << '\n';
+		Log::Info(
+		    LogCat::vkPhysicalDeviceUtils,
+		    "    Heap {}: size = {} bytes, flags = [{}]",
+		    i,
+		    memProps.memoryHeaps[i].size,
+		    MemoryHeapFlagsToString(memProps.memoryHeaps[i].flags)
+		);
 	}
-	std::cout << "  Memory types (" << memProps.memoryTypeCount << "):\n";
+	Log::Info(LogCat::vkPhysicalDeviceUtils, "  Memory types ({}):", memProps.memoryTypeCount);
 	for (uint32_t i = 0; i < memProps.memoryTypeCount; ++i) {
-		std::cout << "    Type " << i << ": heap = " << memProps.memoryTypes[i].heapIndex
-		          << ", propertyFlags = " << memProps.memoryTypes[i].propertyFlags << '\n';
+		Log::Info(
+		    LogCat::vkPhysicalDeviceUtils,
+		    "    Type {}: heap = {}, properties = [{}]",
+		    i,
+		    memProps.memoryTypes[i].heapIndex,
+		    MemoryPropertyFlagsToString(memProps.memoryTypes[i].propertyFlags)
+		);
 	}
-	std::cout << '\n';
+	Log::Info(LogCat::vkPhysicalDeviceUtils, "");
 
 	VkPhysicalDeviceFeatures features;
 	vkGetPhysicalDeviceFeatures(physicalDevice, &features);
-	std::cout << "----- DEVICE FEATURES -----\n";
-#define PRINT_FEATURE(f) std::cout << "  " #f ": " << (features.f ? "true" : "false") << '\n'
+	Log::Info(LogCat::vkPhysicalDeviceUtils, "----- DEVICE FEATURES -----");
+#define PRINT_FEATURE(f) Log::Info(LogCat::vkPhysicalDeviceUtils, "  {}: {}", #f, (features.f ? "true" : "false"))
 	PRINT_FEATURE(robustBufferAccess);
 	PRINT_FEATURE(fullDrawIndexUint32);
 	PRINT_FEATURE(imageCubeArray);

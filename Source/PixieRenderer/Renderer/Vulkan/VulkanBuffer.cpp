@@ -1,15 +1,14 @@
-#include "PixieRenderer/pch.h"
 #include "VulkanBuffer.h"
+#include "PixieRenderer/pch.h"
 
+#include <vulkan/vk_enum_string_helper.h>
+
+#include "PixieRenderer/LogCategories.h"
 #include "VulkanDevice.h"
 
 namespace PixieRenderer {
 
-VulkanBuffer::VulkanBuffer(
-    VulkanDevice& parentDevice,
-    VkBufferUsageFlags usage,
-    VkMemoryPropertyFlags properties
-)
+VulkanBuffer::VulkanBuffer(VulkanDevice& parentDevice, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties)
     : m_device(parentDevice), m_usage(usage), m_properties(properties) {
 }
 
@@ -20,7 +19,9 @@ VulkanBuffer::VulkanBuffer(
     VkMemoryPropertyFlags properties
 )
     : m_device(parentDevice), m_usage(usage), m_properties(properties) {
-	Resize(size);
+	if (!Resize(size)) {
+		Log::Error(LogCat::vkBuffer, "VulkanBuffer: Resize failed.");
+	}
 }
 
 VulkanBuffer::~VulkanBuffer() {
@@ -41,17 +42,24 @@ void* VulkanBuffer::GetMappedData() const {
 
 void VulkanBuffer::Load(const void* bufferData, VkDeviceSize size) {
 	if (!bufferData) {
-		throw std::runtime_error("Data pointer is null");
-	}
-	if (size == 0) {
-		throw std::runtime_error("Data size is 0");
+		Log::Error(LogCat::vkBuffer, "Load: nullptr is passed as source.");
+		return;
 	}
 
-	if (m_size != size) {
-		Resize(size);
+	if (size == 0) {
+		return;
+	}
+
+	if (m_size != size && !Resize(size)) {
+		Log::Error(LogCat::vkBuffer, "Load: Resize failed.");
+		return;
 	}
 
 	if (m_properties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
+		if (m_mappedMemory == nullptr) {
+			Log::Error(LogCat::vkBuffer, "Load: HOST_VISIBLE buffer is not mapped");
+			return;
+		}
 		memcpy(static_cast<char*>(m_mappedMemory), bufferData, static_cast<size_t>(size));
 		Flush(size, 0);
 		return;
@@ -71,16 +79,22 @@ void VulkanBuffer::Load(const void* bufferData, VkDeviceSize size) {
 
 void VulkanBuffer::LoadSubData(const void* bufferData, VkDeviceSize size, VkDeviceSize offset) {
 	if (!bufferData) {
-		throw std::runtime_error("Data pointer is null");
+		Log::Error(LogCat::vkBuffer, "LoadSubData: nullptr is passed as source.");
+		return;
 	}
 	if (size == 0) {
-		throw std::runtime_error("Data size is 0");
+		return;
 	}
-	if (offset + size > m_size) {
-		throw std::runtime_error("Load range exceeds buffer size");
+	if (offset > m_size || size > m_size - offset) {
+		Log::Error(LogCat::vkBuffer, "LoadSubData: Load range exceeds buffer size. No data is written.");
+		return;
 	}
 
 	if (m_properties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
+		if (m_mappedMemory == nullptr) {
+			Log::Error(LogCat::vkBuffer, "LoadSubData: HOST_VISIBLE buffer is not mapped");
+			return;
+		}
 		memcpy(static_cast<char*>(m_mappedMemory) + offset, bufferData, static_cast<size_t>(size));
 		Flush(size, offset);
 		return;
@@ -100,16 +114,19 @@ void VulkanBuffer::LoadSubData(const void* bufferData, VkDeviceSize size, VkDevi
 
 void VulkanBuffer::ReadData(void* outData, VkDeviceSize size, VkDeviceSize offset) const {
 	if (outData == nullptr) {
-		throw std::runtime_error("outData is null");
+		Log::Error(LogCat::vkBuffer, "ReadData: nullptr is passed as destination.");
+		return;
 	}
 	if (size == 0) {
-		throw std::runtime_error("read size id 0");
+		return;
 	}
 	if (!m_mappedMemory) {
-		throw std::runtime_error("Buffer not mapped");
+		Log::Error(LogCat::vkBuffer, "ReadData: Buffer not mapped");
+		return;
 	}
-	if (offset + size > m_size) {
-		throw std::runtime_error("Read out of bounds");
+	if (offset > m_size || size > m_size - offset) {
+		Log::Error(LogCat::vkBuffer, "ReadData: Read out of bounds. No data copied.");
+		return;
 	}
 
 	Invalidate(size, offset);
@@ -134,8 +151,14 @@ void VulkanBuffer::Free() {
 	m_size = 0;
 }
 
-void VulkanBuffer::Resize(VkDeviceSize size) {
-	Free();
+bool VulkanBuffer::Resize(VkDeviceSize size) {
+	if (size == m_size && m_buffer != VK_NULL_HANDLE && m_memory != VK_NULL_HANDLE) {
+		return true;
+	}
+	if (size == 0) {
+		Log::Error(LogCat::vkBuffer, "Resize: size must be > 0");
+		return false;
+	}
 
 	VkDevice device = m_device.GetDevice();
 
@@ -145,34 +168,69 @@ void VulkanBuffer::Resize(VkDeviceSize size) {
 	bufferInfo.usage = m_usage;
 	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-	if (vkCreateBuffer(device, &bufferInfo, nullptr, &m_buffer) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create buffer!");
+	VkBuffer newBuffer = VK_NULL_HANDLE;
+	VkResult result = vkCreateBuffer(device, &bufferInfo, nullptr, &newBuffer);
+	if (result != VK_SUCCESS) {
+		Log::Error(LogCat::vkBuffer, "Resize: vkCreateBuffer failed: {}", string_VkResult(result));
+		return false;
 	}
 
-	VkMemoryRequirements memRequirements;
-	vkGetBufferMemoryRequirements(device, m_buffer, &memRequirements);
+	VkMemoryRequirements memReq{};
+	vkGetBufferMemoryRequirements(device, newBuffer, &memReq);
+
+	const uint32_t memoryTypeIndex = m_device.FindMemoryType(memReq.memoryTypeBits, m_properties);
+	if (memoryTypeIndex == VulkanDevice::kInvalidMemoryType) {
+		Log::Error(
+		    LogCat::vkBuffer,
+		    "Resize: no memory type for bits=0x{:x}, props=0x{:x}",
+		    memReq.memoryTypeBits,
+		    m_properties
+		);
+		vkDestroyBuffer(device, newBuffer, nullptr);
+		return false;
+	}
 
 	VkMemoryAllocateInfo allocInfo{};
 	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	allocInfo.allocationSize = memRequirements.size;
-	allocInfo.memoryTypeIndex =
-	    m_device.FindMemoryType(memRequirements.memoryTypeBits, m_properties);
+	allocInfo.allocationSize = memReq.size;
+	allocInfo.memoryTypeIndex = memoryTypeIndex;
 
-	if (vkAllocateMemory(device, &allocInfo, nullptr, &m_memory) != VK_SUCCESS) {
-		throw std::runtime_error("failed to allocate buffer memory!");
+	VkDeviceMemory newMemory = VK_NULL_HANDLE;
+	result = vkAllocateMemory(device, &allocInfo, nullptr, &newMemory);
+	if (result != VK_SUCCESS) {
+		Log::Error(LogCat::vkBuffer, "Resize: vkAllocateMemory failed: {}", string_VkResult(result));
+		vkDestroyBuffer(device, newBuffer, nullptr);
+		return false;
 	}
 
-	if (vkBindBufferMemory(device, m_buffer, m_memory, 0) != VK_SUCCESS) {
-		throw std::runtime_error("failed to bind buffer memory!");
+	result = vkBindBufferMemory(device, newBuffer, newMemory, 0);
+	if (result != VK_SUCCESS) {
+		Log::Error(LogCat::vkBuffer, "Resize: vkBindBufferMemory failed: {}", string_VkResult(result));
+		vkFreeMemory(device, newMemory, nullptr);
+		vkDestroyBuffer(device, newBuffer, nullptr);
+		return false;
 	}
 
-	if (m_properties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
-		if (vkMapMemory(device, m_memory, 0, size, 0, &m_mappedMemory) != VK_SUCCESS) {
-			throw std::runtime_error("failed to map buffer memory!");
+	void* newMapped = nullptr;
+	const bool needsMapping = (m_properties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0;
+	if (needsMapping) {
+		result = vkMapMemory(device, newMemory, 0, VK_WHOLE_SIZE, 0, &newMapped);
+		if (result != VK_SUCCESS) {
+			Log::Error(LogCat::vkBuffer, "Resize: vkMapMemory failed: {}", string_VkResult(result));
+			vkFreeMemory(device, newMemory, nullptr);
+			vkDestroyBuffer(device, newBuffer, nullptr);
+			return false;
 		}
 	}
 
+	Free();
+
+	m_buffer = newBuffer;
+	m_memory = newMemory;
+	m_mappedMemory = newMapped;
 	m_size = size;
+
+	return true;
 }
 
 void VulkanBuffer::Flush(VkDeviceSize size, VkDeviceSize offset) const {
@@ -182,7 +240,11 @@ void VulkanBuffer::Flush(VkDeviceSize size, VkDeviceSize offset) const {
 		range.memory = m_memory;
 		range.offset = offset;
 		range.size = size == VK_WHOLE_SIZE ? m_size - offset : size;
-		vkFlushMappedMemoryRanges(m_device.GetDevice(), 1, &range);
+
+		VkResult r = vkFlushMappedMemoryRanges(m_device.GetDevice(), 1, &range);
+		if (r != VK_SUCCESS) {
+			Log::Error(LogCat::vkBuffer, "vkFlushMappedMemoryRanges failed: {}", string_VkResult(r));
+		}
 	}
 }
 
@@ -193,7 +255,11 @@ void VulkanBuffer::Invalidate(VkDeviceSize size, VkDeviceSize offset) const {
 		range.memory = m_memory;
 		range.offset = offset;
 		range.size = size == VK_WHOLE_SIZE ? m_size - offset : size;
-		vkInvalidateMappedMemoryRanges(m_device.GetDevice(), 1, &range);
+
+		VkResult r = vkInvalidateMappedMemoryRanges(m_device.GetDevice(), 1, &range);
+		if (r != VK_SUCCESS) {
+			Log::Error(LogCat::vkBuffer, "vkInvalidateMappedMemoryRanges failed: {}", string_VkResult(r));
+		}
 	}
 }
 

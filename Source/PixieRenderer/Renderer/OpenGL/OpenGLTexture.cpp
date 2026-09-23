@@ -1,5 +1,7 @@
-#include "PixieRenderer/pch.h"
 #include "OpenGLTexture.h"
+#include "PixieRenderer/pch.h"
+
+#include "PixieRenderer/LogCategories.h"
 
 namespace PixieRenderer {
 
@@ -97,7 +99,11 @@ void OpenGLTexture::Load(const Image2D* image) {
 		);
 		break;
 	default:
-		throw "RendererOpenGL::CreateTexture: unhandled texture type";
+		Log::Error(
+		    LogCat::glTexture,
+		    "Unsupported texture format: {}. No data loaded.",
+		    std::to_underlying(image->format)
+		);
 	}
 
 	glBindTexture(GL_TEXTURE_2D, 0);
@@ -109,15 +115,7 @@ void OpenGLTexture::Bind(uint32_t index) {
 }
 
 void OpenGLTexture::BindImageTexture(uint32_t index) {
-	glBindImageTexture(
-	    static_cast<GLuint>(index),
-	    m_id,
-	    0,
-	    GL_FALSE,
-	    0,
-	    GL_READ_WRITE,
-	    m_internalFormat
-	);
+	glBindImageTexture(static_cast<GLuint>(index), m_id, 0, GL_FALSE, 0, GL_READ_WRITE, m_internalFormat);
 }
 
 void OpenGLTexture::SetWrap(GLint wrapS, GLint wrapT, GLint wrapR) {

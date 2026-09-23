@@ -80,12 +80,12 @@ class ResourceManagerVulkan : public IResourceManager {
 	void AddRef(uint64_t id) override;
 	void Release(uint64_t id) override;
 
-	VulkanTexture& GetTexture(TextureHandle handle);
-	VulkanMesh& GetMesh(MeshHandle handle);
-	VulkanGraphicsProgram& GetGraphicsProgram(MaterialHandle handle);
-	VulkanComputeProgram& GetComputeProgram(ComputeProgramHandle handle);
-	VulkanBuffer& GetBuffer(BufferHandle handle);
-	VulkanFrameBuffer& GetFrameBuffer(FrameBufferHandle handle);
+	VulkanTexture* GetTexture(TextureHandle handle);
+	VulkanMesh* GetMesh(MeshHandle handle);
+	VulkanGraphicsProgram* GetGraphicsProgram(MaterialHandle handle);
+	VulkanComputeProgram* GetComputeProgram(ComputeProgramHandle handle);
+	VulkanBuffer* GetBuffer(BufferHandle handle);
+	VulkanFrameBuffer* GetFrameBuffer(FrameBufferHandle handle);
 
 	std::vector<ResourceEntry<VulkanMesh>>& GetMeshes();
 	std::vector<ResourceEntry<VulkanGraphicsProgram>>& GetGraphicsPrograms();
