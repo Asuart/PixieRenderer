@@ -236,14 +236,10 @@ void PBRMaterial::Bind(std::shared_ptr<IRenderer> renderer) {
 	}
 	renderer->BindBuffer(m_handle, "materialData", m_uniformBuffer);
 
-	if (m_albedoTexture)
-		renderer->BindTexture(m_handle, "albedoTexture", m_albedoTexture);
-	if (m_metallicTexture)
-		renderer->BindTexture(m_handle, "metallicTexture", m_metallicTexture);
-	if (m_roughnessTexture)
-		renderer->BindTexture(m_handle, "roughnessTexture", m_roughnessTexture);
-	if (m_normalTexture)
-		renderer->BindTexture(m_handle, "normalTexture", m_normalTexture);
+	renderer->BindTexture(m_handle, "albedoTexture", m_albedoTexture);
+	renderer->BindTexture(m_handle, "metallicTexture", m_metallicTexture);
+	renderer->BindTexture(m_handle, "roughnessTexture", m_roughnessTexture);
+	renderer->BindTexture(m_handle, "normalTexture", m_normalTexture);
 }
 
 } // namespace PixieRenderer
